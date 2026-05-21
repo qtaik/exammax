@@ -74,54 +74,23 @@ export async function POST(req: Request) {
       })
     }
 
-    // 获取用户信息
-    const user = await prisma.user.findUnique({
-      where: { id: authResult.user!.userId },
+    // 只记录答题历史，不给积分
+    await prisma.answerRecord.createMany({
+      data: results.map((r) => ({
+        userId: authResult.user!.userId,
+        questionId: r.questionId,
+        userAnswer: r.userAnswer,
+        isCorrect: r.correct,
+        timeSpent: Math.floor(totalTime / answers.length),
+      })),
     })
-
-    if (!user) {
-      return NextResponse.json({ error: "用户不存在" }, { status: 404 })
-    }
-
-    const newExperience = user.experience + totalPoints
-    const newLevel = Math.min(Math.floor(newExperience / 100) + 1, 99)
-    const leveledUp = newLevel > user.level
-
-    // 批量创建答题记录、更新用户、记录积分
-    await prisma.$transaction([
-      prisma.answerRecord.createMany({
-        data: results.map((r) => ({
-          userId: authResult.user!.userId,
-          questionId: r.questionId,
-          userAnswer: r.userAnswer,
-          isCorrect: r.correct,
-          timeSpent: Math.floor(totalTime / answers.length),
-        })),
-      }),
-      prisma.user.update({
-        where: { id: authResult.user!.userId },
-        data: {
-          points: { increment: totalPoints },
-          experience: newExperience,
-          level: newLevel,
-        },
-      }),
-      prisma.pointLog.create({
-        data: {
-          userId: authResult.user!.userId,
-          points: totalPoints,
-          reason: `考试完成 ${correctCount}/${answers.length} 正确`,
-        },
-      }),
-    ])
 
     return NextResponse.json({
       total: answers.length,
       correct: correctCount,
       accuracy: Math.round((correctCount / answers.length) * 100),
-      pointsEarned: totalPoints,
+      pointsEarned: 0,
       timeSpent: totalTime,
-      newLevel: leveledUp ? newLevel : undefined,
       results,
     })
   } catch (error) {

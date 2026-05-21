@@ -17,6 +17,24 @@ export async function GET(req: Request) {
       return NextResponse.json({ total })
     }
 
+    // 逐题闯关模式：返回分类全部题目
+    if (mode === "all") {
+      const questions = await prisma.question.findMany({
+        where,
+        select: {
+          id: true,
+          type: true,
+          content: true,
+          options: true,
+          difficulty: true,
+          imageUrl: true,
+          category: { select: { name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      })
+      return NextResponse.json({ questions })
+    }
+
     const questions = await prisma.question.findMany({
       where,
       select: {
@@ -89,61 +107,22 @@ export async function POST(req: Request) {
         break
     }
 
-    // 计算积分
-    const pointsEarned = correct
-      ? 10 + question.difficulty * 5
-      : 1
-
-    // 获取用户信息并更新
-    const user = await prisma.user.findUnique({
-      where: { id: authResult.user!.userId },
+    // 只记录答题历史，不给积分（积分从签到/成就等渠道获取）
+    await prisma.answerRecord.create({
+      data: {
+        userId: authResult.user!.userId,
+        questionId,
+        userAnswer: String(userAnswer),
+        isCorrect: correct,
+        timeSpent: timeSpent || 0,
+      },
     })
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "用户不存在" },
-        { status: 404 }
-      )
-    }
-
-    const newExperience = user.experience + pointsEarned
-    const newLevel = Math.min(Math.floor(newExperience / 100) + 1, 99)
-    const leveledUp = newLevel > user.level
-
-    // 创建答题记录并更新用户数据
-    await prisma.$transaction([
-      prisma.answerRecord.create({
-        data: {
-          userId: authResult.user!.userId,
-          questionId,
-          userAnswer: String(userAnswer),
-          isCorrect: correct,
-          timeSpent: timeSpent || 0,
-        },
-      }),
-      prisma.user.update({
-        where: { id: authResult.user!.userId },
-        data: {
-          points: { increment: pointsEarned },
-          experience: newExperience,
-          level: newLevel,
-        },
-      }),
-      prisma.pointLog.create({
-        data: {
-          userId: authResult.user!.userId,
-          points: pointsEarned,
-          reason: correct ? `答对题目 +${pointsEarned}` : `答错题目 +${pointsEarned}`,
-        },
-      }),
-    ])
 
     return NextResponse.json({
       correct,
       correctAnswer: question.answer,
       explanation: question.explanation || "",
-      pointsEarned,
-      newLevel: leveledUp ? newLevel : undefined,
+      pointsEarned: 0,
     })
   } catch (error) {
     console.error("提交答案失败:", error)

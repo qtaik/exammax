@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   CheckCircle, XCircle, ArrowRight, ArrowLeft, Clock, Trophy,
-  Target, Percent, Zap, BookOpen, Shuffle, FileText, Timer,
+  Target, Percent, BookOpen, Shuffle, FileText, Timer,
 } from "lucide-react"
 
 interface Category {
@@ -50,6 +51,40 @@ type Phase = "select" | "practice" | "exam" | "examResult"
 const EXAM_COUNTS = [10, 20, 30, 50]
 const EXAM_TIMES = [10, 20, 30, 60]
 
+interface PracticeProgress {
+  questions: Question[]
+  currentIndex: number
+  summary: { total: number; correct: number }
+  categoryId: string
+  categoryName: string
+}
+
+function progressKey(categoryId: string) {
+  return `practice_progress_${categoryId}`
+}
+
+function loadProgress(categoryId: string): PracticeProgress | null {
+  if (typeof window === "undefined") return null
+  try {
+    const raw = localStorage.getItem(progressKey(categoryId))
+    return raw ? JSON.parse(raw) : null
+  } catch { return null }
+}
+
+function saveProgress(categoryId: string, data: PracticeProgress) {
+  if (typeof window === "undefined") return
+  try {
+    localStorage.setItem(progressKey(categoryId), JSON.stringify(data))
+  } catch {}
+}
+
+function clearProgress(categoryId: string) {
+  if (typeof window === "undefined") return
+  try {
+    localStorage.removeItem(progressKey(categoryId))
+  } catch {}
+}
+
 export default function PracticePage() {
   const router = useRouter()
 
@@ -81,6 +116,7 @@ export default function PracticePage() {
   const [examTimeLeft, setExamTimeLeft] = useState(0)
   const [examSubmitting, setExamSubmitting] = useState(false)
   const [examAvailableCount, setExamAvailableCount] = useState(0)
+  const [continueDialog, setContinueDialog] = useState<PracticeProgress | null>(null)
   const [examResult, setExamResult] = useState<{
     total: number
     correct: number
@@ -93,6 +129,7 @@ export default function PracticePage() {
 
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const startTimeRef = useRef<number>(Date.now())
+  const progressCatRef = useRef<string>("")
 
   // --- Fetch categories ---
   useEffect(() => {
@@ -162,10 +199,31 @@ export default function PracticePage() {
 
   // --- Start one-by-one / random ---
   const startPractice = useCallback(async (categoryId?: string) => {
+    // 逐题闯关：检查是否有未完成的进度
+    if (categoryId) {
+      const saved = loadProgress(categoryId)
+      if (saved && saved.questions.length > 0) {
+        setContinueDialog(saved)
+        return
+      }
+    }
+
+    doStartPractice(categoryId)
+  }, [])
+
+  const doStartPractice = useCallback(async (categoryId?: string, savedProgress?: PracticeProgress) => {
     setPhase("practice")
     setLoadingQuestions(true)
-    setSummary({ total: 0, correct: 0, pointsEarned: 0 })
-    setCurrentIndex(0)
+
+    if (savedProgress) {
+      // 恢复进度
+      setQuestions(savedProgress.questions)
+      setCurrentIndex(savedProgress.currentIndex)
+      setSummary(savedProgress.summary)
+    } else {
+      setSummary({ total: 0, correct: 0, pointsEarned: 0 })
+      setCurrentIndex(0)
+    }
     setResult(null)
     setUserAnswer("")
     setSelectedOption(null)
@@ -173,15 +231,38 @@ export default function PracticePage() {
     startTimeRef.current = Date.now()
     setTimeSpent(0)
 
+    // 逐题闯关：记录分类 ID 用于进度存档
+    progressCatRef.current = categoryId || ""
+
+    if (savedProgress) {
+      setLoadingQuestions(false)
+      return
+    }
+
     try {
       const token = localStorage.getItem("token")
+      // 逐题闯关用 mode=all 拉取全部题目
+      const mode = categoryId ? "all" : "default"
       const url = categoryId
-        ? `/api/practice?categoryId=${categoryId}`
+        ? `/api/practice?categoryId=${categoryId}&mode=${mode}`
         : "/api/practice"
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
       const data = await res.json()
-      setQuestions(data.questions || [])
-      if (!data.questions || data.questions.length === 0) setFinished(true)
+      const qs = data.questions || []
+      setQuestions(qs)
+      if (qs.length === 0) setFinished(true)
+      // 初始化进度存档
+      if (categoryId && qs.length > 0) {
+        const catName = qs[0]?.category?.name || ""
+        progressCatRef.current = categoryId
+        saveProgress(categoryId, {
+          questions: qs,
+          currentIndex: 0,
+          summary: { total: 0, correct: 0 },
+          categoryId,
+          categoryName: catName,
+        })
+      }
     } catch {
       setFinished(true)
     } finally {
@@ -270,18 +351,36 @@ export default function PracticePage() {
       setSummary((prev) => ({
         total: prev.total + 1,
         correct: prev.correct + (data.correct ? 1 : 0),
-        pointsEarned: prev.pointsEarned + data.pointsEarned,
+        pointsEarned: 0,
       }))
+      // 逐题闯关：答完即存档
+      if (mode === "onebyone" && progressCatRef.current) {
+        const prevProgress = loadProgress(progressCatRef.current)
+        if (prevProgress) {
+          saveProgress(progressCatRef.current, {
+            ...prevProgress,
+            currentIndex: prevProgress.currentIndex + 1,
+            summary: {
+              total: prevProgress.summary.total + 1,
+              correct: prevProgress.summary.correct + (data.correct ? 1 : 0),
+            },
+          })
+        }
+      }
     } catch {} finally { setSubmitting(false) }
   }
 
   const handleNext = () => {
     setResult(null); setUserAnswer(""); setSelectedOption(null)
-    if (currentIndex + 1 >= questions.length) {
+    const nextIdx = currentIndex + 1
+    if (nextIdx >= questions.length) {
+      if (mode === "onebyone" && progressCatRef.current) {
+        clearProgress(progressCatRef.current)
+      }
       setFinished(true)
       if (timerRef.current) clearInterval(timerRef.current)
     } else {
-      setCurrentIndex(currentIndex + 1)
+      setCurrentIndex(nextIdx)
       startTimeRef.current = Date.now(); setTimeSpent(0)
     }
   }
@@ -317,9 +416,9 @@ export default function PracticePage() {
         {/* Mode tabs */}
         <div className="flex rounded-lg border overflow-hidden">
           {[
-            { key: "onebyone" as PracticeMode, label: "按个答题", icon: BookOpen },
+            { key: "onebyone" as PracticeMode, label: "逐题闯关", icon: BookOpen },
             { key: "random" as PracticeMode, label: "随机抽题", icon: Shuffle },
-            { key: "exam" as PracticeMode, label: "考试模式", icon: FileText },
+            { key: "exam" as PracticeMode, label: "模拟考试", icon: FileText },
           ].map(({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -335,9 +434,9 @@ export default function PracticePage() {
 
         {/* Mode description */}
         <p className="text-center text-muted-foreground text-sm">
-          {mode === "onebyone" && "逐题答题，答完即时反馈对错和解析"}
+          {mode === "onebyone" && "逐题作答分类全部题目，中途退出可保存进度"}
           {mode === "random" && "从题库中随机抽取题目练习"}
-          {mode === "exam" && "限时考试，答完统一显示结果"}
+          {mode === "exam" && "限时模拟考试，答完统一显示结果"}
         </p>
 
         {/* Exam settings */}
@@ -449,6 +548,34 @@ export default function PracticePage() {
             <p className="text-muted-foreground">暂无分类，请联系管理员创建</p>
           </div>
         )}
+
+        {/* Continue progress dialog */}
+        <Dialog open={!!continueDialog} onOpenChange={() => setContinueDialog(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>检测到未完成的答题进度</DialogTitle>
+              <DialogDescription>
+                {continueDialog && `已完成 ${continueDialog.summary.total} 题，答对 ${continueDialog.summary.correct} 题，是否继续上次的进度？`}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                const catId = continueDialog!.categoryId
+                setContinueDialog(null)
+                doStartPractice(catId)
+              }}>
+                重新开始
+              </Button>
+              <Button onClick={() => {
+                const saved = continueDialog!
+                setContinueDialog(null)
+                doStartPractice(saved.categoryId, saved)
+              }}>
+                继续答题
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     )
   }
@@ -482,10 +609,6 @@ export default function PracticePage() {
                   <Percent className="h-5 w-5 text-purple-500" />
                   <div><p className="text-sm text-muted-foreground">正确率</p><p className="text-xl font-bold">{accuracy}%</p></div>
                 </div>
-                <div className="flex items-center gap-3 rounded-lg border p-4">
-                  <Zap className="h-5 w-5 text-orange-500" />
-                  <div><p className="text-sm text-muted-foreground">获得积分</p><p className="text-xl font-bold">{summary.pointsEarned}</p></div>
-                </div>
               </div>
               <Button className="w-full" onClick={() => { setPhase("select"); setFinished(false) }}>
                 <ArrowLeft className="mr-2 h-4 w-4" /> 继续刷题
@@ -515,7 +638,17 @@ export default function PracticePage() {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <Badge variant="outline">{question.category.name}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{question.category.name}</Badge>
+            {mode === "onebyone" && (
+              <Button variant="ghost" size="sm" onClick={() => {
+                alert("答题进度已保存到浏览器本地，下次请使用同一浏览器继续。")
+                setPhase("select")
+              }}>
+                退出答题
+              </Button>
+            )}
+          </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1 text-sm text-muted-foreground">
               <Clock className="h-4 w-4" /> {formatTime(timeSpent)}
@@ -596,14 +729,7 @@ export default function PracticePage() {
                       </p>
                     )}
                   </div>
-                  <Badge variant={result.correct ? "default" : "destructive"}>+{result.pointsEarned} 积分</Badge>
                 </div>
-                {result.newLevel && (
-                  <div className="flex items-center gap-2 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-950">
-                    <Trophy className="h-5 w-5 text-yellow-600" />
-                    <p className="font-medium text-yellow-700 dark:text-yellow-300">恭喜升级！当前等级: {result.newLevel}</p>
-                  </div>
-                )}
                 {result.explanation && (
                   <div className="rounded-lg border p-4">
                     <p className="text-sm font-medium mb-1">解析</p>
@@ -647,7 +773,7 @@ export default function PracticePage() {
         {/* Top bar */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
-            <Badge variant="outline">考试模式</Badge>
+            <Badge variant="outline">模拟考试</Badge>
             <span className="text-sm text-muted-foreground">
               已答 {answeredCount}/{examQuestions.length}
             </span>
@@ -780,7 +906,7 @@ export default function PracticePage() {
             <CardTitle className="text-2xl">考试结束！</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
               <div className="flex items-center gap-3 rounded-lg border p-4">
                 <Target className="h-5 w-5 text-blue-500" />
                 <div><p className="text-sm text-muted-foreground">总题数</p><p className="text-xl font-bold">{examResult.total}</p></div>
@@ -793,18 +919,7 @@ export default function PracticePage() {
                 <Percent className="h-5 w-5 text-purple-500" />
                 <div><p className="text-sm text-muted-foreground">正确率</p><p className="text-xl font-bold">{examResult.accuracy}%</p></div>
               </div>
-              <div className="flex items-center gap-3 rounded-lg border p-4">
-                <Zap className="h-5 w-5 text-orange-500" />
-                <div><p className="text-sm text-muted-foreground">获得积分</p><p className="text-xl font-bold">{examResult.pointsEarned}</p></div>
-              </div>
             </div>
-
-            {examResult.newLevel && (
-              <div className="flex items-center justify-center gap-2 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-950 mb-4">
-                <Trophy className="h-5 w-5 text-yellow-600" />
-                <p className="font-medium text-yellow-700 dark:text-yellow-300">恭喜升级！当前等级: {examResult.newLevel}</p>
-              </div>
-            )}
 
             <div className="flex gap-2">
               <Button className="flex-1" onClick={() => { setPhase("select"); setExamResult(null) }}>
