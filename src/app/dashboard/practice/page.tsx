@@ -105,7 +105,7 @@ export default function PracticePage() {
   const [result, setResult] = useState<SubmitResult | null>(null)
   const [timeSpent, setTimeSpent] = useState(0)
   const [finished, setFinished] = useState(false)
-  const [summary, setSummary] = useState({ total: 0, correct: 0, pointsEarned: 0 })
+  const [summary, setSummary] = useState({ total: 0, correct: 0 })
 
   // --- Exam state ---
   const [examCount, setExamCount] = useState(20)
@@ -130,6 +130,8 @@ export default function PracticePage() {
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const startTimeRef = useRef<number>(Date.now())
   const progressCatRef = useRef<string>("")
+  const modeRef = useRef(mode)
+  modeRef.current = mode
 
   // --- Fetch categories ---
   useEffect(() => {
@@ -199,8 +201,8 @@ export default function PracticePage() {
 
   // --- Start one-by-one / random ---
   const startPractice = useCallback(async (categoryId?: string) => {
-    // 逐题闯关：检查是否有未完成的进度
-    if (categoryId) {
+    // 仅逐题闯关检查未完成进度
+    if (categoryId && modeRef.current === "onebyone") {
       const saved = loadProgress(categoryId)
       if (saved && saved.questions.length > 0) {
         setContinueDialog(saved)
@@ -221,7 +223,7 @@ export default function PracticePage() {
       setCurrentIndex(savedProgress.currentIndex)
       setSummary(savedProgress.summary)
     } else {
-      setSummary({ total: 0, correct: 0, pointsEarned: 0 })
+      setSummary({ total: 0, correct: 0 })
       setCurrentIndex(0)
     }
     setResult(null)
@@ -351,7 +353,6 @@ export default function PracticePage() {
       setSummary((prev) => ({
         total: prev.total + 1,
         correct: prev.correct + (data.correct ? 1 : 0),
-        pointsEarned: 0,
       }))
       // 逐题闯关：答完即存档
       if (mode === "onebyone" && progressCatRef.current) {
