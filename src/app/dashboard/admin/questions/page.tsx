@@ -245,10 +245,10 @@ export default function AdminQuestionsPage() {
         })
         const d = await res.json()
         if (!res.ok) { alert(d.error || "删除失败"); return }
-        if (d.skipped && d.skipped.length > 0) {
-          alert(`删除 ${d.deleted} 个分类，跳过 ${d.skipped.length} 个（含题目）：\n${d.skipped.map((s: any) => `${s.name} (${s.questions}题)`).join("\n")}`)
+        if (d.deletedQuestions > 0) {
+          alert(`已删除 ${d.deleted} 个分类及 ${d.deletedQuestions} 道题目`)
         }
-        setSelectedC(new Set()); setBatchDeleteDialog(false); fetchCategories()
+        setSelectedC(new Set()); setBatchDeleteDialog(false); fetchCategories(); fetchQuestions()
       } catch { alert("删除失败") }
     }
   }
@@ -277,7 +277,10 @@ export default function AdminQuestionsPage() {
       })
       const d = await res.json()
       if (!res.ok) { alert(d.error || "删除失败"); return }
-      fetchCategories()
+      if (d.deletedQuestions > 0) {
+        alert(`分类已删除，同时删除了 ${d.deletedQuestions} 道题目`)
+      }
+      fetchCategories(); fetchQuestions()
     } catch { alert("删除失败") }
   }
 
@@ -516,10 +519,7 @@ export default function AdminQuestionsPage() {
                         <td className="py-3 px-2">
                           <div className="flex gap-1">
                             <Button variant="ghost" size="sm" onClick={() => openCatEdit(c)}><Pencil className="h-4 w-4" /></Button>
-                            <Button variant="ghost" size="sm" onClick={() => {
-                              if ((c._count?.questions || 0) > 0) { alert("该分类下有题目，无法删除"); return }
-                              handleCatDelete(c.id)
-                            }}>
+                            <Button variant="ghost" size="sm" onClick={() => handleCatDelete(c.id)}>
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>
@@ -632,7 +632,7 @@ export default function AdminQuestionsPage() {
               ? selectAll
                 ? `确定要删除全部 ${total} 道题目吗？此操作不可撤销。`
                 : `确定要删除选中的 ${selectedQ.size} 道题目吗？此操作不可撤销。`
-              : `确定要删除选中的 ${selectedC.size} 个分类吗？含有题目的分类将被跳过。`}
+              : `确定要删除选中的 ${selectedC.size} 个分类吗？分类内的题目也会一并删除，此操作不可撤销。`}
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBatchDeleteDialog(false)}>取消</Button>

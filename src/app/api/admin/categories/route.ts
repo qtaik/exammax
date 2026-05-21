@@ -104,7 +104,7 @@ export async function DELETE(req: Request) {
     const id = url.searchParams.get("id")
     const idsParam = url.searchParams.get("ids")
 
-    // Batch delete
+    // Batch delete (cascade: delete questions + answer records)
     if (idsParam) {
       const ids = idsParam.split(",").filter(Boolean)
       if (ids.length === 0) {
@@ -116,19 +116,34 @@ export async function DELETE(req: Request) {
         include: { _count: { select: { questions: true } } },
       })
 
-      const deletable = categories.filter((c) => c._count.questions === 0)
-      const skipped = categories.filter((c) => c._count.questions > 0)
+      // Protect "默认" category
+      const protected_ = categories.filter((c) => c.name === "默认")
+      if (protected_.length > 0) {
+        return NextResponse.json({ error: "「默认」分类不能删除" }, { status: 400 })
+      }
 
-      if (deletable.length > 0) {
-        await prisma.category.deleteMany({
-          where: { id: { in: deletable.map((c) => c.id) } },
-        })
+      // Get all question IDs in these categories
+      const questions = await prisma.question.findMany({
+        where: { categoryId: { in: ids } },
+        select: { id: true },
+      })
+      const qIds = questions.map((q) => q.id)
+
+      // Cascade: delete answer records → questions → categories
+      if (qIds.length > 0) {
+        await prisma.$transaction([
+          prisma.answerRecord.deleteMany({ where: { questionId: { in: qIds } } }),
+          prisma.question.deleteMany({ where: { id: { in: qIds } } }),
+          prisma.category.deleteMany({ where: { id: { in: ids } } }),
+        ])
+      } else {
+        await prisma.category.deleteMany({ where: { id: { in: ids } } })
       }
 
       return NextResponse.json({
         success: true,
-        deleted: deletable.length,
-        skipped: skipped.map((c) => ({ id: c.id, name: c.name, questions: c._count.questions })),
+        deleted: categories.length,
+        deletedQuestions: qIds.length,
       })
     }
 
@@ -146,13 +161,29 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "分类不存在" }, { status: 404 })
     }
 
-    if (category._count.questions > 0) {
-      return NextResponse.json({ error: "该分类下存在题目，无法删除" }, { status: 400 })
+    // Protect "默认" category
+    if (category.name === "默认") {
+      return NextResponse.json({ error: "「默认」分类不能删除" }, { status: 400 })
     }
 
-    await prisma.category.delete({ where: { id } })
+    // Cascade: delete answer records → questions → category
+    const qIds = await prisma.question.findMany({
+      where: { categoryId: id },
+      select: { id: true },
+    })
+    const questionIds = qIds.map((q) => q.id)
 
-    return NextResponse.json({ success: true })
+    if (questionIds.length > 0) {
+      await prisma.$transaction([
+        prisma.answerRecord.deleteMany({ where: { questionId: { in: questionIds } } }),
+        prisma.question.deleteMany({ where: { id: { in: questionIds } } }),
+        prisma.category.delete({ where: { id } }),
+      ])
+    } else {
+      await prisma.category.delete({ where: { id } })
+    }
+
+    return NextResponse.json({ success: true, deletedQuestions: questionIds.length })
   } catch (err) {
     console.error("Delete category error:", err)
     return NextResponse.json({ error: "删除分类失败" }, { status: 500 })
