@@ -13,6 +13,7 @@ const questionRowSchema = z.object({
   "2": z.coerce.string().optional().nullable(),
   "3": z.coerce.string().optional().nullable(),
   "4": z.coerce.string().optional().nullable(),
+  "解析": z.coerce.string().optional().nullable(),
 })
 
 type QuestionRow = z.infer<typeof questionRowSchema>
@@ -49,14 +50,36 @@ export async function POST(req: Request) {
     const workbook = XLSX.read(buffer, { type: "array" })
     const sheetName = workbook.SheetNames[0]
     const worksheet = workbook.Sheets[sheetName]
-    const data = XLSX.utils.sheet_to_json<QuestionRow>(worksheet)
+    const rawData = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet)
 
-    if (data.length === 0) {
+    if (rawData.length === 0) {
       return NextResponse.json(
         { error: "文件为空" },
         { status: 400 }
       )
     }
+
+    // 检测格式: 新格式有 "正确答案" 或 "A" 列
+    const isNewFormat = "正确答案" in rawData[0] || "A" in rawData[0]
+
+    const normalizeRow = (row: Record<string, any>): Record<string, any> => {
+      if (!isNewFormat) return row
+      const rawAnswer = String(row["正确答案"] ?? "")
+      return {
+        "题目内容": row["题目内容"],
+        "答案": rawAnswer.replace(/A/gi, "1").replace(/B/gi, "2").replace(/C/gi, "3").replace(/D/gi, "4"),
+        "题目类型": row["题目类型"],
+        "题目类目": row["题目类目"],
+        "图片路径": row["图片路径"],
+        "1": row["A"] ?? "",
+        "2": row["B"] ?? "",
+        "3": row["C"] ?? "",
+        "4": row["D"] ?? "",
+        "解析": row["解析"] ?? undefined,
+      }
+    }
+
+    const data = rawData.map(normalizeRow)
 
     // Determine the target category
     let targetCategoryId: string | null = null
@@ -134,6 +157,7 @@ export async function POST(req: Request) {
             content: validated["题目内容"],
             options: options.length > 0 ? options : undefined,
             answer: validated["答案"],
+            explanation: validated["解析"] || undefined,
             categoryId: categoryId!,
             imageUrl: validated["图片路径"] || undefined,
             difficulty: 1,

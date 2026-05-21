@@ -679,7 +679,9 @@ export default function AdminQuestionsPage() {
               <label className="text-sm font-medium">选择 xlsx 文件</label>
               <Input type="file" accept=".xlsx,.xls" onChange={(e) => setImportFile(e.target.files?.[0] || null)} />
               <p className="text-xs text-muted-foreground">
-                表头格式：题目内容、答案、题目类型(single/multi/fill/judge)、题目类目、图片路径、1、2、3、4
+                支持两种表头格式：
+                <br />格式一：题目内容、答案、题目类型、题目类目、图片路径、1、2、3、4
+                <br />格式二：题目内容、正确答案、题目类型、题目类目、图片路径、A、B、C、D、解析
               </p>
             </div>
             <div className="space-y-2">
