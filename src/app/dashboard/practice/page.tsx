@@ -1,0 +1,858 @@
+"use client"
+
+import { useEffect, useState, useRef, useCallback } from "react"
+import { useRouter } from "next/navigation"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import {
+  CheckCircle, XCircle, ArrowRight, ArrowLeft, Clock, Trophy,
+  Target, Percent, Zap, BookOpen, Shuffle, FileText, Timer,
+} from "lucide-react"
+
+interface Category {
+  id: string
+  name: string
+  description: string | null
+  _count: { questions: number }
+}
+
+interface Question {
+  id: string
+  type: "CHOICE" | "FILL" | "JUDGE"
+  content: string
+  options: string[] | null
+  difficulty: number
+  imageUrl: string | null
+  category: { name: string }
+}
+
+interface SubmitResult {
+  correct: boolean
+  correctAnswer: string
+  explanation: string
+  pointsEarned: number
+  newLevel?: number
+}
+
+interface ExamResultItem {
+  questionId: string
+  userAnswer: string
+  correct: boolean
+  correctAnswer: string
+  explanation: string
+}
+
+type PracticeMode = "onebyone" | "random" | "exam"
+type Phase = "select" | "practice" | "exam" | "examResult"
+
+const EXAM_COUNTS = [10, 20, 30, 50]
+const EXAM_TIMES = [10, 20, 30, 60]
+
+export default function PracticePage() {
+  const router = useRouter()
+
+  // --- Common state ---
+  const [phase, setPhase] = useState<Phase>("select")
+  const [mode, setMode] = useState<PracticeMode>("onebyone")
+  const [categories, setCategories] = useState<Category[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
+  const [loadingCategories, setLoadingCategories] = useState(true)
+
+  // --- One-by-one / Random state ---
+  const [questions, setQuestions] = useState<Question[]>([])
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [loadingQuestions, setLoadingQuestions] = useState(false)
+  const [userAnswer, setUserAnswer] = useState("")
+  const [selectedOption, setSelectedOption] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [result, setResult] = useState<SubmitResult | null>(null)
+  const [timeSpent, setTimeSpent] = useState(0)
+  const [finished, setFinished] = useState(false)
+  const [summary, setSummary] = useState({ total: 0, correct: 0, pointsEarned: 0 })
+
+  // --- Exam state ---
+  const [examCount, setExamCount] = useState(20)
+  const [examTimeLimit, setExamTimeLimit] = useState(30)
+  const [examQuestions, setExamQuestions] = useState<Question[]>([])
+  const [examAnswers, setExamAnswers] = useState<Record<string, string>>({})
+  const [examCurrentIdx, setExamCurrentIdx] = useState(0)
+  const [examTimeLeft, setExamTimeLeft] = useState(0)
+  const [examSubmitting, setExamSubmitting] = useState(false)
+  const [examAvailableCount, setExamAvailableCount] = useState(0)
+  const [examResult, setExamResult] = useState<{
+    total: number
+    correct: number
+    accuracy: number
+    pointsEarned: number
+    timeSpent: number
+    newLevel?: number
+    results: ExamResultItem[]
+  } | null>(null)
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const startTimeRef = useRef<number>(Date.now())
+
+  // --- Fetch categories ---
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((res) => res.json())
+      .then((data) => setCategories(data.categories || []))
+      .catch(() => {})
+      .finally(() => setLoadingCategories(false))
+  }, [])
+
+  // --- One-by-one timer ---
+  useEffect(() => {
+    if (phase !== "practice" || finished) return
+    timerRef.current = setInterval(() => {
+      setTimeSpent(Math.floor((Date.now() - startTimeRef.current) / 1000))
+    }, 1000)
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [phase, finished])
+
+  // --- Exam countdown ---
+  useEffect(() => {
+    if (phase !== "exam") return
+    timerRef.current = setInterval(() => {
+      setExamTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current!)
+          handleExamSubmit()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [phase])
+
+  // --- Fetch exam available count ---
+  const fetchExamCount = useCallback(async (categoryId?: string) => {
+    try {
+      const token = localStorage.getItem("token")
+      const url = categoryId
+        ? `/api/practice?mode=exam&categoryId=${categoryId}`
+        : "/api/practice?mode=exam"
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      const data = await res.json()
+      setExamAvailableCount(data.total || 0)
+    } catch {
+      setExamAvailableCount(0)
+    }
+  }, [])
+
+  // --- Mode change handler ---
+  const handleModeChange = useCallback((newMode: PracticeMode) => {
+    setMode(newMode)
+    setSelectedCategory(null)
+    if (newMode === "exam") {
+      fetchExamCount()
+    }
+  }, [fetchExamCount])
+
+  // --- Category click handler ---
+  const handleCategoryClick = useCallback((cat: Category | null) => {
+    setSelectedCategory(cat)
+    if (mode === "exam") {
+      fetchExamCount(cat?.id)
+    }
+  }, [mode, fetchExamCount])
+
+  // --- Start one-by-one / random ---
+  const startPractice = useCallback(async (categoryId?: string) => {
+    setPhase("practice")
+    setLoadingQuestions(true)
+    setSummary({ total: 0, correct: 0, pointsEarned: 0 })
+    setCurrentIndex(0)
+    setResult(null)
+    setUserAnswer("")
+    setSelectedOption(null)
+    setFinished(false)
+    startTimeRef.current = Date.now()
+    setTimeSpent(0)
+
+    try {
+      const token = localStorage.getItem("token")
+      const url = categoryId
+        ? `/api/practice?categoryId=${categoryId}`
+        : "/api/practice"
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      const data = await res.json()
+      setQuestions(data.questions || [])
+      if (!data.questions || data.questions.length === 0) setFinished(true)
+    } catch {
+      setFinished(true)
+    } finally {
+      setLoadingQuestions(false)
+    }
+  }, [])
+
+  // --- Start exam ---
+  const startExam = useCallback(async () => {
+    setPhase("exam")
+    setLoadingQuestions(true)
+    setExamAnswers({})
+    setExamCurrentIdx(0)
+    setExamTimeLeft(examTimeLimit * 60)
+
+    try {
+      const token = localStorage.getItem("token")
+      const params = new URLSearchParams({ limit: String(examCount) })
+      if (selectedCategory) params.set("categoryId", selectedCategory.id)
+      const res = await fetch(`/api/practice?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      setExamQuestions(data.questions || [])
+      if (!data.questions || data.questions.length === 0) {
+        setPhase("select")
+      }
+    } catch {
+      setPhase("select")
+    } finally {
+      setLoadingQuestions(false)
+    }
+  }, [examCount, examTimeLimit, selectedCategory])
+
+  // --- Submit exam ---
+  const handleExamSubmit = useCallback(async () => {
+    if (examSubmitting) return
+    setExamSubmitting(true)
+    if (timerRef.current) clearInterval(timerRef.current)
+
+    const totalTime = examTimeLimit * 60 - examTimeLeft
+    const answers = examQuestions.map((q) => ({
+      questionId: q.id,
+      userAnswer: examAnswers[q.id] || "",
+    }))
+
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch("/api/practice/exam", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ answers, totalTime }),
+      })
+      const data = await res.json()
+      setExamResult(data)
+      setPhase("examResult")
+    } catch {
+      // ignore
+    } finally {
+      setExamSubmitting(false)
+    }
+  }, [examSubmitting, examTimeLimit, examTimeLeft, examQuestions, examAnswers])
+
+  // --- One-by-one submit ---
+  const handleSubmit = async () => {
+    if (submitting) return
+    const question = questions[currentIndex]
+    let answer = ""
+    if (question.type === "CHOICE") { if (!selectedOption) return; answer = selectedOption }
+    else if (question.type === "FILL") { if (!userAnswer.trim()) return; answer = userAnswer.trim() }
+    else if (question.type === "JUDGE") { if (!selectedOption) return; answer = selectedOption }
+
+    setSubmitting(true)
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch("/api/practice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ questionId: question.id, userAnswer: answer, timeSpent }),
+      })
+      const data = await res.json()
+      setResult(data)
+      setSummary((prev) => ({
+        total: prev.total + 1,
+        correct: prev.correct + (data.correct ? 1 : 0),
+        pointsEarned: prev.pointsEarned + data.pointsEarned,
+      }))
+    } catch {} finally { setSubmitting(false) }
+  }
+
+  const handleNext = () => {
+    setResult(null); setUserAnswer(""); setSelectedOption(null)
+    if (currentIndex + 1 >= questions.length) {
+      setFinished(true)
+      if (timerRef.current) clearInterval(timerRef.current)
+    } else {
+      setCurrentIndex(currentIndex + 1)
+      startTimeRef.current = Date.now(); setTimeSpent(0)
+    }
+  }
+
+  const formatTime = (s: number) =>
+    `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`
+
+  const getOptionLabel = (q: Question, ans: string) => {
+    if (q.type === "JUDGE") return ans === "1" ? "对" : "错"
+    return ans || "未作答"
+  }
+
+  // ===================== Phase: Select =====================
+  if (phase === "select") {
+    if (loadingCategories) {
+      return <div className="flex items-center justify-center h-64"><p className="text-muted-foreground">加载中...</p></div>
+    }
+
+    const maxCount = Math.min(examAvailableCount, 50)
+
+    return (
+      <div className="max-w-3xl mx-auto space-y-6">
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl font-bold flex items-center justify-center gap-2">
+            <BookOpen className="h-6 w-6" /> 开始刷题
+          </h2>
+        </div>
+
+        {/* Mode tabs */}
+        <div className="flex rounded-lg border overflow-hidden">
+          {[
+            { key: "onebyone" as PracticeMode, label: "按个答题", icon: BookOpen },
+            { key: "random" as PracticeMode, label: "随机抽题", icon: Shuffle },
+            { key: "exam" as PracticeMode, label: "考试模式", icon: FileText },
+          ].map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => handleModeChange(key)}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
+                mode === key ? "bg-primary text-primary-foreground" : "hover:bg-muted/50"
+              }`}
+            >
+              <Icon className="h-4 w-4" /> {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Mode description */}
+        <p className="text-center text-muted-foreground text-sm">
+          {mode === "onebyone" && "逐题答题，答完即时反馈对错和解析"}
+          {mode === "random" && "从题库中随机抽取题目练习"}
+          {mode === "exam" && "限时考试，答完统一显示结果"}
+        </p>
+
+        {/* Exam settings */}
+        {mode === "exam" && (
+          <Card>
+            <CardContent className="p-4 space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">题数</label>
+                <div className="flex gap-2">
+                  {EXAM_COUNTS.map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => setExamCount(n)}
+                      disabled={n > maxCount}
+                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                        examCount === n
+                          ? "border-primary bg-primary/5"
+                          : n > maxCount
+                          ? "opacity-40 cursor-not-allowed"
+                          : "hover:bg-muted/50"
+                      }`}
+                    >
+                      {n} 题
+                    </button>
+                  ))}
+                </div>
+                {maxCount < 10 && (
+                  <p className="text-xs text-destructive mt-1">
+                    当前题库不足 10 题，请先导入题目
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">时间限制</label>
+                <div className="flex gap-2">
+                  {EXAM_TIMES.map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setExamTimeLimit(t)}
+                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                        examTimeLimit === t ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                      }`}
+                    >
+                      {t} 分钟
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Random button (random mode only) */}
+        {mode === "random" && (
+          <Button
+            size="lg"
+            className="w-full h-16 text-lg"
+            onClick={() => { setSelectedCategory(null); startPractice() }}
+          >
+            <Shuffle className="h-5 w-5 mr-2" /> 随机刷题
+          </Button>
+        )}
+
+        {/* Category grid */}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {categories.map((cat) => (
+            <Card
+              key={cat.id}
+              className={`cursor-pointer hover:shadow-md transition ${
+                selectedCategory?.id === cat.id ? "ring-2 ring-primary" : ""
+              }`}
+              onClick={() => {
+                if (mode === "exam") {
+                  handleCategoryClick(cat)
+                } else {
+                  setSelectedCategory(cat)
+                  startPractice(cat.id)
+                }
+              }}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium truncate">{cat.name}</h3>
+                    {cat.description && (
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{cat.description}</p>
+                    )}
+                  </div>
+                  <Badge variant="secondary" className="ml-2 shrink-0">{cat._count.questions} 题</Badge>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {mode === "exam" && (
+          <Button
+            size="lg"
+            className="w-full h-14 text-lg"
+            disabled={maxCount < 10 || examCount > maxCount}
+            onClick={startExam}
+          >
+            <FileText className="h-5 w-5 mr-2" /> 开始考试
+          </Button>
+        )}
+
+        {categories.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">暂无分类，请联系管理员创建</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ===================== Phase: Practice (one-by-one / random) =====================
+  if (phase === "practice") {
+    if (loadingQuestions) {
+      return <div className="flex items-center justify-center h-64"><p className="text-muted-foreground">加载题目中...</p></div>
+    }
+
+    if (finished) {
+      const accuracy = summary.total > 0 ? Math.round((summary.correct / summary.total) * 100) : 0
+      return (
+        <div className="max-w-lg mx-auto space-y-6">
+          <Card>
+            <CardHeader className="text-center">
+              <Trophy className="h-12 w-12 mx-auto text-yellow-500" />
+              <CardTitle className="text-2xl">练习完成！</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-3 rounded-lg border p-4">
+                  <Target className="h-5 w-5 text-blue-500" />
+                  <div><p className="text-sm text-muted-foreground">总题数</p><p className="text-xl font-bold">{summary.total}</p></div>
+                </div>
+                <div className="flex items-center gap-3 rounded-lg border p-4">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <div><p className="text-sm text-muted-foreground">答对</p><p className="text-xl font-bold">{summary.correct}</p></div>
+                </div>
+                <div className="flex items-center gap-3 rounded-lg border p-4">
+                  <Percent className="h-5 w-5 text-purple-500" />
+                  <div><p className="text-sm text-muted-foreground">正确率</p><p className="text-xl font-bold">{accuracy}%</p></div>
+                </div>
+                <div className="flex items-center gap-3 rounded-lg border p-4">
+                  <Zap className="h-5 w-5 text-orange-500" />
+                  <div><p className="text-sm text-muted-foreground">获得积分</p><p className="text-xl font-bold">{summary.pointsEarned}</p></div>
+                </div>
+              </div>
+              <Button className="w-full" onClick={() => { setPhase("select"); setFinished(false) }}>
+                <ArrowLeft className="mr-2 h-4 w-4" /> 继续刷题
+              </Button>
+              <Button variant="outline" className="w-full" onClick={() => router.push("/dashboard")}>
+                返回首页
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )
+    }
+
+    if (questions.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+          <p className="text-muted-foreground">暂无题目，请联系管理员导入题库</p>
+          <Button onClick={() => setPhase("select")}>返回选择</Button>
+        </div>
+      )
+    }
+
+    const question = questions[currentIndex]
+    const typeLabels: Record<string, string> = { CHOICE: "选择题", FILL: "填空题", JUDGE: "判断题" }
+    const difficultyStars = Array.from({ length: question.difficulty }, () => "★").join("")
+
+    return (
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <Badge variant="outline">{question.category.name}</Badge>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Clock className="h-4 w-4" /> {formatTime(timeSpent)}
+            </div>
+            <span className="text-sm text-muted-foreground">{currentIndex + 1} / {questions.length}</span>
+          </div>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2 mb-2">
+              <Badge>{typeLabels[question.type]}</Badge>
+              <span className="text-sm text-muted-foreground">难度: {difficultyStars}</span>
+            </div>
+            <CardTitle className="text-lg font-normal leading-relaxed">{question.content}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {question.imageUrl && <img src={question.imageUrl} alt="题目图片" className="max-w-full rounded-lg border" />}
+
+            {!result && (
+              <div className="space-y-4">
+                {question.type === "CHOICE" && question.options && (
+                  <div className="space-y-2">
+                    {(question.options as string[]).map((option, index) => (
+                      <button key={index} onClick={() => setSelectedOption(option)}
+                        className={`w-full text-left rounded-lg border p-3 transition-colors ${
+                          selectedOption === option ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                        }`}>
+                        <span className="font-medium mr-2">{String.fromCharCode(65 + index)}.</span>{option}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {question.type === "FILL" && (
+                  <Input placeholder="请输入答案" value={userAnswer}
+                    onChange={(e) => setUserAnswer(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleSubmit() }} />
+                )}
+                {question.type === "JUDGE" && (
+                  <div className="flex gap-4">
+                    {[{ v: "1", l: "对" }, { v: "2", l: "错" }].map(({ v, l }) => (
+                      <button key={v} onClick={() => setSelectedOption(v)}
+                        className={`flex-1 rounded-lg border p-4 text-center font-medium transition-colors ${
+                          selectedOption === v ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                        }`}>{l}</button>
+                    ))}
+                  </div>
+                )}
+                <Button className="w-full" onClick={handleSubmit} disabled={
+                  submitting ||
+                  (question.type === "CHOICE" && !selectedOption) ||
+                  (question.type === "FILL" && !userAnswer.trim()) ||
+                  (question.type === "JUDGE" && !selectedOption)
+                }>
+                  {submitting ? "提交中..." : "提交答案"}
+                </Button>
+              </div>
+            )}
+
+            {result && (
+              <div className="space-y-4">
+                <div className={`flex items-center gap-3 rounded-lg border p-4 ${
+                  result.correct ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950"
+                    : "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950"
+                }`}>
+                  {result.correct ? <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    : <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />}
+                  <div className="flex-1">
+                    <p className={`font-medium ${result.correct ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"}`}>
+                      {result.correct ? "回答正确！" : "回答错误"}
+                    </p>
+                    {!result.correct && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        正确答案: {question.type === "JUDGE" ? (result.correctAnswer === "1" ? "对" : "错") : result.correctAnswer}
+                      </p>
+                    )}
+                  </div>
+                  <Badge variant={result.correct ? "default" : "destructive"}>+{result.pointsEarned} 积分</Badge>
+                </div>
+                {result.newLevel && (
+                  <div className="flex items-center gap-2 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-950">
+                    <Trophy className="h-5 w-5 text-yellow-600" />
+                    <p className="font-medium text-yellow-700 dark:text-yellow-300">恭喜升级！当前等级: {result.newLevel}</p>
+                  </div>
+                )}
+                {result.explanation && (
+                  <div className="rounded-lg border p-4">
+                    <p className="text-sm font-medium mb-1">解析</p>
+                    <p className="text-sm text-muted-foreground">{result.explanation}</p>
+                  </div>
+                )}
+                <Button className="w-full" onClick={handleNext}>
+                  {currentIndex + 1 >= questions.length ? "查看结果" : "下一题"}
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // ===================== Phase: Exam =====================
+  if (phase === "exam") {
+    if (loadingQuestions) {
+      return <div className="flex items-center justify-center h-64"><p className="text-muted-foreground">加载题目中...</p></div>
+    }
+
+    if (examQuestions.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+          <p className="text-muted-foreground">暂无题目</p>
+          <Button onClick={() => setPhase("select")}>返回选择</Button>
+        </div>
+      )
+    }
+
+    const currentQ = examQuestions[examCurrentIdx]
+    const currentAnswer = examAnswers[currentQ.id] || ""
+    const answeredCount = Object.keys(examAnswers).length
+    const isTimeWarning = examTimeLeft <= 60
+
+    return (
+      <div className="max-w-5xl mx-auto">
+        {/* Top bar */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <Badge variant="outline">考试模式</Badge>
+            <span className="text-sm text-muted-foreground">
+              已答 {answeredCount}/{examQuestions.length}
+            </span>
+          </div>
+          <div className={`flex items-center gap-2 font-mono text-lg font-bold ${
+            isTimeWarning ? "text-destructive" : "text-muted-foreground"
+          }`}>
+            <Timer className="h-5 w-5" />
+            {formatTime(examTimeLeft)}
+          </div>
+        </div>
+
+        <div className="flex gap-4">
+          {/* Left sidebar - question numbers */}
+          <div className="w-48 shrink-0">
+            <Card>
+              <CardContent className="p-3">
+                <p className="text-xs font-medium text-muted-foreground mb-2">题目导航</p>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {examQuestions.map((q, idx) => {
+                    const answered = !!examAnswers[q.id]
+                    const isCurrent = idx === examCurrentIdx
+                    return (
+                      <button
+                        key={q.id}
+                        onClick={() => setExamCurrentIdx(idx)}
+                        className={`h-8 rounded text-xs font-medium transition-colors ${
+                          isCurrent
+                            ? "bg-primary text-primary-foreground"
+                            : answered
+                            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                            : "bg-muted hover:bg-muted/80"
+                        }`}
+                      >
+                        {idx + 1}
+                      </button>
+                    )
+                  })}
+                </div>
+                <Button
+                  className="w-full mt-3"
+                  size="sm"
+                  onClick={handleExamSubmit}
+                  disabled={examSubmitting}
+                >
+                  {examSubmitting ? "交卷中..." : "交卷"}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right - question content */}
+          <div className="flex-1">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge>{currentQ.type === "CHOICE" ? "选择题" : currentQ.type === "FILL" ? "填空题" : "判断题"}</Badge>
+                  <span className="text-sm text-muted-foreground">
+                    难度: {Array.from({ length: currentQ.difficulty }, () => "★").join("")}
+                  </span>
+                </div>
+                <CardTitle className="text-lg font-normal leading-relaxed">{currentQ.content}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {currentQ.imageUrl && <img src={currentQ.imageUrl} alt="题目图片" className="max-w-full rounded-lg border" />}
+
+                {currentQ.type === "CHOICE" && currentQ.options && (
+                  <div className="space-y-2">
+                    {(currentQ.options as string[]).map((option, index) => (
+                      <button key={index}
+                        onClick={() => setExamAnswers((prev) => ({ ...prev, [currentQ.id]: option }))}
+                        className={`w-full text-left rounded-lg border p-3 transition-colors ${
+                          currentAnswer === option ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                        }`}>
+                        <span className="font-medium mr-2">{String.fromCharCode(65 + index)}.</span>{option}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {currentQ.type === "FILL" && (
+                  <Input placeholder="请输入答案" value={currentAnswer}
+                    onChange={(e) => setExamAnswers((prev) => ({ ...prev, [currentQ.id]: e.target.value }))} />
+                )}
+
+                {currentQ.type === "JUDGE" && (
+                  <div className="flex gap-4">
+                    {[{ v: "1", l: "对" }, { v: "2", l: "错" }].map(({ v, l }) => (
+                      <button key={v}
+                        onClick={() => setExamAnswers((prev) => ({ ...prev, [currentQ.id]: v }))}
+                        className={`flex-1 rounded-lg border p-4 text-center font-medium transition-colors ${
+                          currentAnswer === v ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                        }`}>{l}</button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Navigation */}
+                <div className="flex gap-2 pt-2">
+                  <Button variant="outline" className="flex-1"
+                    disabled={examCurrentIdx === 0}
+                    onClick={() => setExamCurrentIdx((prev) => prev - 1)}>
+                    <ArrowLeft className="mr-2 h-4 w-4" /> 上一题
+                  </Button>
+                  <Button variant="outline" className="flex-1"
+                    disabled={examCurrentIdx >= examQuestions.length - 1}
+                    onClick={() => setExamCurrentIdx((prev) => prev + 1)}>
+                    下一题 <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ===================== Phase: Exam Result =====================
+  if (phase === "examResult" && examResult) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-6">
+        {/* Summary card */}
+        <Card>
+          <CardHeader className="text-center">
+            <Trophy className="h-12 w-12 mx-auto text-yellow-500" />
+            <CardTitle className="text-2xl">考试结束！</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+              <div className="flex items-center gap-3 rounded-lg border p-4">
+                <Target className="h-5 w-5 text-blue-500" />
+                <div><p className="text-sm text-muted-foreground">总题数</p><p className="text-xl font-bold">{examResult.total}</p></div>
+              </div>
+              <div className="flex items-center gap-3 rounded-lg border p-4">
+                <CheckCircle className="h-5 w-5 text-green-500" />
+                <div><p className="text-sm text-muted-foreground">答对</p><p className="text-xl font-bold">{examResult.correct}</p></div>
+              </div>
+              <div className="flex items-center gap-3 rounded-lg border p-4">
+                <Percent className="h-5 w-5 text-purple-500" />
+                <div><p className="text-sm text-muted-foreground">正确率</p><p className="text-xl font-bold">{examResult.accuracy}%</p></div>
+              </div>
+              <div className="flex items-center gap-3 rounded-lg border p-4">
+                <Zap className="h-5 w-5 text-orange-500" />
+                <div><p className="text-sm text-muted-foreground">获得积分</p><p className="text-xl font-bold">{examResult.pointsEarned}</p></div>
+              </div>
+            </div>
+
+            {examResult.newLevel && (
+              <div className="flex items-center justify-center gap-2 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-950 mb-4">
+                <Trophy className="h-5 w-5 text-yellow-600" />
+                <p className="font-medium text-yellow-700 dark:text-yellow-300">恭喜升级！当前等级: {examResult.newLevel}</p>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button className="flex-1" onClick={() => { setPhase("select"); setExamResult(null) }}>
+                <ArrowLeft className="mr-2 h-4 w-4" /> 继续刷题
+              </Button>
+              <Button variant="outline" className="flex-1" onClick={() => router.push("/dashboard")}>
+                返回首页
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Question review */}
+        <h3 className="text-lg font-bold">题目回顾</h3>
+        <div className="space-y-3">
+          {examResult.results.map((r, idx) => {
+            const q = examQuestions.find((eq) => eq.id === r.questionId)
+            if (!q) return null
+            return (
+              <Card key={r.questionId} className={r.correct ? "" : "border-destructive/30"}>
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-muted-foreground">#{idx + 1}</span>
+                      {r.correct
+                        ? <CheckCircle className="h-4 w-4 text-green-500" />
+                        : <XCircle className="h-4 w-4 text-destructive" />}
+                    </div>
+                    <Badge variant={r.correct ? "default" : "destructive"}>
+                      {r.correct ? "正确" : "错误"}
+                    </Badge>
+                  </div>
+                  <p className="text-sm">{q.content}</p>
+                  <div className="flex gap-4 text-sm">
+                    <span className="text-muted-foreground">
+                      你的答案: <span className={r.correct ? "text-green-600" : "text-destructive font-medium"}>
+                        {getOptionLabel(q, r.userAnswer)}
+                      </span>
+                    </span>
+                    {!r.correct && (
+                      <span className="text-muted-foreground">
+                        正确答案: <span className="text-green-600 font-medium">
+                          {getOptionLabel(q, r.correctAnswer)}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                  {r.explanation && (
+                    <p className="text-xs text-muted-foreground bg-muted/50 rounded p-2">{r.explanation}</p>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  return null
+}
