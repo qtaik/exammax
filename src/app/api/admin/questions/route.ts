@@ -214,8 +214,14 @@ export async function DELETE(req: Request) {
     // Delete by filter (select all across pages)
     if (mode === "filter") {
       const where = buildWhere(req)
-      const result = await prisma.question.deleteMany({ where })
-      return NextResponse.json({ success: true, deleted: result.count })
+      const questions = await prisma.question.findMany({ where, select: { id: true } })
+      const qIds = questions.map((q) => q.id)
+      if (qIds.length === 0) return NextResponse.json({ success: true, deleted: 0 })
+      await prisma.$transaction([
+        prisma.answerRecord.deleteMany({ where: { questionId: { in: qIds } } }),
+        prisma.question.deleteMany({ where: { id: { in: qIds } } }),
+      ])
+      return NextResponse.json({ success: true, deleted: qIds.length })
     }
 
     // Batch delete by IDs
@@ -224,10 +230,11 @@ export async function DELETE(req: Request) {
       if (ids.length === 0) {
         return NextResponse.json({ error: "缺少题目ID" }, { status: 400 })
       }
-      const result = await prisma.question.deleteMany({
-        where: { id: { in: ids } },
-      })
-      return NextResponse.json({ success: true, deleted: result.count })
+      await prisma.$transaction([
+        prisma.answerRecord.deleteMany({ where: { questionId: { in: ids } } }),
+        prisma.question.deleteMany({ where: { id: { in: ids } } }),
+      ])
+      return NextResponse.json({ success: true, deleted: ids.length })
     }
 
     // Single delete
@@ -240,7 +247,10 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "题目不存在" }, { status: 404 })
     }
 
-    await prisma.question.delete({ where: { id } })
+    await prisma.$transaction([
+      prisma.answerRecord.deleteMany({ where: { questionId: id } }),
+      prisma.question.delete({ where: { id } }),
+    ])
 
     return NextResponse.json({ success: true })
   } catch (err) {
