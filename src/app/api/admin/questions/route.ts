@@ -3,6 +3,19 @@ import { requireAuth, requireRole } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { QuestionType } from "@prisma/client"
 
+function buildWhere(req: Request) {
+  const url = new URL(req.url)
+  const categoryId = url.searchParams.get("categoryId") || undefined
+  const type = url.searchParams.get("type") as QuestionType | undefined
+  const search = url.searchParams.get("search") || undefined
+
+  const where: any = {}
+  if (categoryId) where.categoryId = categoryId
+  if (type && ["CHOICE", "FILL", "JUDGE"].includes(type)) where.type = type
+  if (search) where.content = { contains: search }
+  return where
+}
+
 export async function GET(req: Request) {
   const { error, user } = requireAuth(req)
   if (error) return error
@@ -11,22 +24,20 @@ export async function GET(req: Request) {
 
   try {
     const url = new URL(req.url)
+    const mode = url.searchParams.get("mode")
+    const where = buildWhere(req)
+
+    // Return only IDs (for select all)
+    if (mode === "ids") {
+      const questions = await prisma.question.findMany({
+        where,
+        select: { id: true },
+      })
+      return NextResponse.json({ ids: questions.map((q) => q.id), total: questions.length })
+    }
+
     const page = Math.max(1, parseInt(url.searchParams.get("page") || "1"))
     const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "20")))
-    const categoryId = url.searchParams.get("categoryId") || undefined
-    const type = url.searchParams.get("type") as QuestionType | undefined
-    const search = url.searchParams.get("search") || undefined
-
-    const where: any = {}
-    if (categoryId) {
-      where.categoryId = categoryId
-    }
-    if (type && ["CHOICE", "FILL", "JUDGE"].includes(type)) {
-      where.type = type
-    }
-    if (search) {
-      where.content = { contains: search }
-    }
 
     const [questions, total] = await Promise.all([
       prisma.question.findMany({
@@ -198,8 +209,16 @@ export async function DELETE(req: Request) {
     const url = new URL(req.url)
     const id = url.searchParams.get("id")
     const idsParam = url.searchParams.get("ids")
+    const mode = url.searchParams.get("mode")
 
-    // Batch delete
+    // Delete by filter (select all across pages)
+    if (mode === "filter") {
+      const where = buildWhere(req)
+      const result = await prisma.question.deleteMany({ where })
+      return NextResponse.json({ success: true, deleted: result.count })
+    }
+
+    // Batch delete by IDs
     if (idsParam) {
       const ids = idsParam.split(",").filter(Boolean)
       if (ids.length === 0) {

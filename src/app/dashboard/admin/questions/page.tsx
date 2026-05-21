@@ -55,6 +55,7 @@ export default function AdminQuestionsPage() {
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [loading, setLoading] = useState(true)
   const [selectedQ, setSelectedQ] = useState<Set<string>>(new Set())
+  const [selectAll, setSelectAll] = useState(false)
 
   // --- Categories state ---
   const [categories, setCategories] = useState<CategoryItem[]>([])
@@ -126,12 +127,38 @@ export default function AdminQuestionsPage() {
 
   // ==================== Selection ====================
   const toggleSelectQ = (id: string) => {
+    setSelectAll(false)
     setSelectedQ((prev) => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
   }
-  const toggleSelectAllQ = () => {
-    if (selectedQ.size === questions.length) setSelectedQ(new Set())
-    else setSelectedQ(new Set(questions.map((q) => q.id)))
+
+  const buildFilterParams = () => {
+    const params = new URLSearchParams()
+    if (search) params.set("search", search)
+    if (typeFilter !== "all") params.set("type", typeFilter)
+    if (categoryFilter !== "all") params.set("categoryId", categoryFilter)
+    return params.toString()
   }
+
+  const toggleSelectAllQ = async () => {
+    if (selectAll) {
+      setSelectAll(false)
+      setSelectedQ(new Set())
+      return
+    }
+    // Select all on current page first
+    setSelectedQ(new Set(questions.map((q) => q.id)))
+    // Then fetch all matching IDs
+    try {
+      const filterStr = buildFilterParams()
+      const url = `/api/admin/questions?mode=ids&${filterStr}`
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${getToken()}` } })
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setSelectedQ(new Set(data.ids))
+      setSelectAll(true)
+    } catch {}
+  }
+
   const toggleSelectC = (id: string) => {
     setSelectedC((prev) => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
   }
@@ -192,14 +219,22 @@ export default function AdminQuestionsPage() {
 
   const handleBatchDelete = async () => {
     if (batchDeleteTarget === "questions") {
-      const ids = Array.from(selectedQ)
-      if (ids.length === 0) return
+      if (selectedQ.size === 0) return
       try {
-        const res = await fetch(`/api/admin/questions?ids=${ids.join(",")}`, {
+        let url: string
+        if (selectAll) {
+          // Delete all matching the current filters
+          const filterStr = buildFilterParams()
+          url = `/api/admin/questions?mode=filter&${filterStr}`
+        } else {
+          const ids = Array.from(selectedQ)
+          url = `/api/admin/questions?ids=${ids.join(",")}`
+        }
+        const res = await fetch(url, {
           method: "DELETE", headers: { Authorization: `Bearer ${getToken()}` },
         })
         if (!res.ok) { const d = await res.json(); alert(d.error || "删除失败"); return }
-        setSelectedQ(new Set()); setBatchDeleteDialog(false); fetchQuestions(); fetchCategories()
+        setSelectAll(false); setSelectedQ(new Set()); setBatchDeleteDialog(false); fetchQuestions(); fetchCategories()
       } catch { alert("删除失败") }
     } else {
       const ids = Array.from(selectedC)
@@ -308,7 +343,17 @@ export default function AdminQuestionsPage() {
 
       {/* ==================== Questions Tab ==================== */}
       {tab === "questions" && (
-        <Card>
+        <>
+          {selectAll && (
+            <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2 text-sm">
+              <CheckSquare className="h-4 w-4 text-primary" />
+              <span>已选择全部 <strong>{total}</strong> 道题目</span>
+              <Button variant="ghost" size="sm" className="ml-auto h-6 text-xs" onClick={() => { setSelectAll(false); setSelectedQ(new Set()) }}>
+                取消选择
+              </Button>
+            </div>
+          )}
+          <Card>
           <CardHeader>
             <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
               <div className="flex gap-2 flex-1">
@@ -339,7 +384,7 @@ export default function AdminQuestionsPage() {
                 </Select>
                 {selectedQ.size > 0 && (
                   <Button variant="destructive" size="sm" onClick={() => { setBatchDeleteTarget("questions"); setBatchDeleteDialog(true) }}>
-                    <Trash2 className="h-4 w-4 mr-1" /> 删除 ({selectedQ.size})
+                    <Trash2 className="h-4 w-4 mr-1" /> 删除 {selectAll ? `全部 ${total} 道` : `(${selectedQ.size})`}
                   </Button>
                 )}
               </div>
@@ -357,7 +402,7 @@ export default function AdminQuestionsPage() {
                     <tr className="border-b">
                       <th className="text-left py-3 px-2 w-8">
                         <button onClick={toggleSelectAllQ} className="text-muted-foreground hover:text-foreground">
-                          {selectedQ.size === questions.length && questions.length > 0
+                          {selectAll || (selectedQ.size === questions.length && questions.length > 0)
                             ? <CheckSquare className="h-4 w-4" />
                             : <Square className="h-4 w-4" />}
                         </button>
@@ -414,6 +459,7 @@ export default function AdminQuestionsPage() {
             )}
           </CardContent>
         </Card>
+        </>
       )}
 
       {/* ==================== Categories Tab ==================== */}
@@ -583,7 +629,9 @@ export default function AdminQuestionsPage() {
           <DialogHeader><DialogTitle>确认批量删除</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">
             {batchDeleteTarget === "questions"
-              ? `确定要删除选中的 ${selectedQ.size} 道题目吗？此操作不可撤销。`
+              ? selectAll
+                ? `确定要删除全部 ${total} 道题目吗？此操作不可撤销。`
+                : `确定要删除选中的 ${selectedQ.size} 道题目吗？此操作不可撤销。`
               : `确定要删除选中的 ${selectedC.size} 个分类吗？含有题目的分类将被跳过。`}
           </p>
           <DialogFooter>
