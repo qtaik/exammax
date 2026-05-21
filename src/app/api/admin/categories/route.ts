@@ -102,7 +102,37 @@ export async function DELETE(req: Request) {
   try {
     const url = new URL(req.url)
     const id = url.searchParams.get("id")
+    const idsParam = url.searchParams.get("ids")
 
+    // Batch delete
+    if (idsParam) {
+      const ids = idsParam.split(",").filter(Boolean)
+      if (ids.length === 0) {
+        return NextResponse.json({ error: "缺少分类ID" }, { status: 400 })
+      }
+
+      const categories = await prisma.category.findMany({
+        where: { id: { in: ids } },
+        include: { _count: { select: { questions: true } } },
+      })
+
+      const deletable = categories.filter((c) => c._count.questions === 0)
+      const skipped = categories.filter((c) => c._count.questions > 0)
+
+      if (deletable.length > 0) {
+        await prisma.category.deleteMany({
+          where: { id: { in: deletable.map((c) => c.id) } },
+        })
+      }
+
+      return NextResponse.json({
+        success: true,
+        deleted: deletable.length,
+        skipped: skipped.map((c) => ({ id: c.id, name: c.name, questions: c._count.questions })),
+      })
+    }
+
+    // Single delete
     if (!id) {
       return NextResponse.json({ error: "缺少分类ID" }, { status: 400 })
     }

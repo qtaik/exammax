@@ -4,15 +4,15 @@ import { prisma } from "@/lib/prisma"
 import * as XLSX from "xlsx"
 
 const questionRowSchema = z.object({
-  "题目内容": z.string().min(1),
-  "答案": z.string().min(1),
-  "题目类型": z.enum(["single", "multi", "fill", "judge"]),
-  "题目类目": z.string().min(1),
-  "图片路径": z.string().optional().nullable(),
-  "1": z.string().optional().nullable(),
-  "2": z.string().optional().nullable(),
-  "3": z.string().optional().nullable(),
-  "4": z.string().optional().nullable(),
+  "题目内容": z.coerce.string().min(1),
+  "答案": z.coerce.string().min(1),
+  "题目类型": z.coerce.string().pipe(z.enum(["single", "multi", "fill", "judge"])),
+  "题目类目": z.coerce.string().min(1),
+  "图片路径": z.coerce.string().optional().nullable(),
+  "1": z.coerce.string().optional().nullable(),
+  "2": z.coerce.string().optional().nullable(),
+  "3": z.coerce.string().optional().nullable(),
+  "4": z.coerce.string().optional().nullable(),
 })
 
 type QuestionRow = z.infer<typeof questionRowSchema>

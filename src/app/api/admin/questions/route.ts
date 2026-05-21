@@ -197,7 +197,21 @@ export async function DELETE(req: Request) {
   try {
     const url = new URL(req.url)
     const id = url.searchParams.get("id")
+    const idsParam = url.searchParams.get("ids")
 
+    // Batch delete
+    if (idsParam) {
+      const ids = idsParam.split(",").filter(Boolean)
+      if (ids.length === 0) {
+        return NextResponse.json({ error: "缺少题目ID" }, { status: 400 })
+      }
+      const result = await prisma.question.deleteMany({
+        where: { id: { in: ids } },
+      })
+      return NextResponse.json({ success: true, deleted: result.count })
+    }
+
+    // Single delete
     if (!id) {
       return NextResponse.json({ error: "缺少题目ID" }, { status: 400 })
     }
