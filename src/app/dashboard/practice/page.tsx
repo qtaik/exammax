@@ -133,6 +133,7 @@ export default function PracticePage() {
   const progressCatRef = useRef<string>("")
   const modeRef = useRef(mode)
   modeRef.current = mode
+  const examSubmitRef = useRef<typeof handleExamSubmit>(undefined)
 
   // --- Fetch categories ---
   useEffect(() => {
@@ -156,17 +157,17 @@ export default function PracticePage() {
   useEffect(() => {
     if (phase !== "exam") return
     timerRef.current = setInterval(() => {
-      setExamTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current!)
-          handleExamSubmit()
-          return 0
-        }
-        return prev - 1
-      })
+      setExamTimeLeft((prev) => Math.max(0, prev - 1))
     }, 1000)
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
   }, [phase])
+
+  // --- Auto-submit when time runs out ---
+  useEffect(() => {
+    if (phase === "exam" && examTimeLeft === 0) {
+      examSubmitRef.current?.()
+    }
+  }, [phase, examTimeLeft])
 
   // --- Fetch exam available count ---
   const fetchExamCount = useCallback(async (categoryId?: string) => {
@@ -336,6 +337,7 @@ export default function PracticePage() {
       setExamSubmitting(false)
     }
   }, [examSubmitting, examTimeLimit, examTimeLeft, examQuestions, examAnswers])
+  examSubmitRef.current = handleExamSubmit
 
   // --- One-by-one submit ---
   const handleSubmit = async () => {
