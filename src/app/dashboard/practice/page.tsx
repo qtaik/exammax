@@ -110,6 +110,7 @@ export default function PracticePage() {
   // --- Exam state ---
   const [examCount, setExamCount] = useState(20)
   const [examTimeLimit, setExamTimeLimit] = useState(30)
+  const [randomCount, setRandomCount] = useState(10)
   const [examQuestions, setExamQuestions] = useState<Question[]>([])
   const [examAnswers, setExamAnswers] = useState<Record<string, string>>({})
   const [examCurrentIdx, setExamCurrentIdx] = useState(0)
@@ -210,10 +211,11 @@ export default function PracticePage() {
       }
     }
 
-    doStartPractice(categoryId)
-  }, [])
+    const limit = modeRef.current === "random" ? randomCount : undefined
+    doStartPractice(categoryId, undefined, limit)
+  }, [randomCount])
 
-  const doStartPractice = useCallback(async (categoryId?: string, savedProgress?: PracticeProgress) => {
+  const doStartPractice = useCallback(async (categoryId?: string, savedProgress?: PracticeProgress, limit?: number) => {
     setPhase("practice")
     setLoadingQuestions(true)
 
@@ -233,8 +235,8 @@ export default function PracticePage() {
     startTimeRef.current = Date.now()
     setTimeSpent(0)
 
-    // 逐题闯关：记录分类 ID 用于进度存档
-    progressCatRef.current = categoryId || ""
+    // 仅逐题闯关记录分类 ID 用于进度存档
+    progressCatRef.current = modeRef.current === "onebyone" ? (categoryId || "") : ""
 
     if (savedProgress) {
       setLoadingQuestions(false)
@@ -243,18 +245,22 @@ export default function PracticePage() {
 
     try {
       const token = localStorage.getItem("token")
-      // 逐题闯关用 mode=all 拉取全部题目
-      const mode = categoryId ? "all" : "default"
-      const url = categoryId
-        ? `/api/practice?categoryId=${categoryId}&mode=${mode}`
-        : "/api/practice"
+      const params = new URLSearchParams()
+      if (categoryId) params.set("categoryId", categoryId)
+      // 逐题闯关用 mode=all 拉全部，随机用 limit
+      if (modeRef.current === "onebyone" && categoryId) {
+        params.set("mode", "all")
+      } else if (limit) {
+        params.set("limit", String(limit))
+      }
+      const url = `/api/practice?${params.toString()}`
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
       const data = await res.json()
       const qs = data.questions || []
       setQuestions(qs)
       if (qs.length === 0) setFinished(true)
-      // 初始化进度存档
-      if (categoryId && qs.length > 0) {
+      // 仅逐题闯关初始化进度存档
+      if (modeRef.current === "onebyone" && categoryId && qs.length > 0) {
         const catName = qs[0]?.category?.name || ""
         progressCatRef.current = categoryId
         saveProgress(categoryId, {
@@ -490,15 +496,35 @@ export default function PracticePage() {
           </Card>
         )}
 
-        {/* Random button (random mode only) */}
+        {/* Random settings */}
         {mode === "random" && (
-          <Button
-            size="lg"
-            className="w-full h-16 text-lg"
-            onClick={() => { setSelectedCategory(null); startPractice() }}
-          >
-            <Shuffle className="h-5 w-5 mr-2" /> 随机刷题
-          </Button>
+          <Card>
+            <CardContent className="p-4 space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">抽取题数</label>
+                <div className="flex gap-2">
+                  {[5, 10, 20, 30].map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => setRandomCount(n)}
+                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                        randomCount === n ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                      }`}
+                    >
+                      {n} 题
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <Button
+                size="lg"
+                className="w-full h-14 text-lg"
+                onClick={() => { setSelectedCategory(null); startPractice() }}
+              >
+                <Shuffle className="h-5 w-5 mr-2" /> 随机刷题
+              </Button>
+            </CardContent>
+          </Card>
         )}
 
         {/* Category grid */}
