@@ -519,9 +519,11 @@ export default function PracticePage() {
               <Button
                 size="lg"
                 className="w-full h-14 text-lg"
-                onClick={() => { setSelectedCategory(null); startPractice() }}
+                disabled={!selectedCategory}
+                onClick={() => selectedCategory && startPractice(selectedCategory.id)}
               >
-                <Shuffle className="h-5 w-5 mr-2" /> 随机刷题
+                <Shuffle className="h-5 w-5 mr-2" />
+                {selectedCategory ? `开始随机抽题 · ${selectedCategory.name}` : "请先选择分类"}
               </Button>
             </CardContent>
           </Card>
@@ -536,7 +538,7 @@ export default function PracticePage() {
                 selectedCategory?.id === cat.id ? "ring-2 ring-primary" : ""
               }`}
               onClick={() => {
-                if (mode === "exam") {
+                if (mode === "exam" || mode === "random") {
                   handleCategoryClick(cat)
                 } else {
                   setSelectedCategory(cat)
