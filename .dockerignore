@@ -1,4 +1,6 @@
 .next
 .git
+node_modules
+测试文件
 *.md
 .env.local

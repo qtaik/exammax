@@ -10,9 +10,9 @@ RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists
 FROM base AS deps
 WORKDIR /app
 
-# 直接复制已安装的 node_modules
+# 容器内安装依赖，避免跨平台 node_modules 问题
 COPY package.json package-lock.json* ./
-COPY node_modules ./node_modules
+RUN npm ci
 
 # Rebuild the source code only when needed
 FROM base AS builder
