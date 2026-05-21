@@ -162,9 +162,10 @@ export default function AdminQuestionsPage() {
   const toggleSelectC = (id: string) => {
     setSelectedC((prev) => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
   }
+  const selectableCategories = categories.filter(c => c.name !== "默认")
   const toggleSelectAllC = () => {
-    if (selectedC.size === categories.length) setSelectedC(new Set())
-    else setSelectedC(new Set(categories.map((c) => c.id)))
+    if (selectedC.size === selectableCategories.length) setSelectedC(new Set())
+    else setSelectedC(new Set(selectableCategories.map((c) => c.id)))
   }
 
   // ==================== Question CRUD ====================
@@ -492,7 +493,7 @@ export default function AdminQuestionsPage() {
                     <tr className="border-b">
                       <th className="text-left py-3 px-2 w-8">
                         <button onClick={toggleSelectAllC} className="text-muted-foreground hover:text-foreground">
-                          {selectedC.size === categories.length && categories.length > 0
+                          {selectableCategories.length > 0 && selectedC.size === selectableCategories.length
                             ? <CheckSquare className="h-4 w-4" />
                             : <Square className="h-4 w-4" />}
                         </button>
@@ -507,9 +508,13 @@ export default function AdminQuestionsPage() {
                     {categories.map((c) => (
                       <tr key={c.id} className="border-b hover:bg-muted/50">
                         <td className="py-3 px-2">
-                          <button onClick={() => toggleSelectC(c.id)} className="text-muted-foreground hover:text-foreground">
-                            {selectedC.has(c.id) ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
-                          </button>
+                          {c.name !== "默认" ? (
+                            <button onClick={() => toggleSelectC(c.id)} className="text-muted-foreground hover:text-foreground">
+                              {selectedC.has(c.id) ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+                            </button>
+                          ) : (
+                            <span className="inline-block w-4" />
+                          )}
                         </td>
                         <td className="py-3 px-2 font-medium">{c.name}</td>
                         <td className="py-3 px-2 text-muted-foreground">{c.description || "-"}</td>
@@ -519,9 +524,11 @@ export default function AdminQuestionsPage() {
                         <td className="py-3 px-2">
                           <div className="flex gap-1">
                             <Button variant="ghost" size="sm" onClick={() => openCatEdit(c)}><Pencil className="h-4 w-4" /></Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleCatDelete(c.id)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                            {c.name !== "默认" && (
+                              <Button variant="ghost" size="sm" onClick={() => handleCatDelete(c.id)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
                           </div>
                         </td>
                       </tr>
