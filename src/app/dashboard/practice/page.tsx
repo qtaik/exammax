@@ -291,6 +291,10 @@ export default function PracticePage() {
 
   const getOptionLabel = (q: Question, ans: string) => {
     if (q.type === "JUDGE") return ans === "1" ? "对" : "错"
+    if (q.type === "CHOICE" && q.options) {
+      const idx = parseInt(ans) - 1
+      if (idx >= 0 && idx < q.options.length) return `${String.fromCharCode(65 + idx)}. ${q.options[idx]}`
+    }
     return ans || "未作答"
   }
 
@@ -535,14 +539,17 @@ export default function PracticePage() {
               <div className="space-y-4">
                 {question.type === "CHOICE" && question.options && (
                   <div className="space-y-2">
-                    {(question.options as string[]).map((option, index) => (
-                      <button key={index} onClick={() => setSelectedOption(option)}
-                        className={`w-full text-left rounded-lg border p-3 transition-colors ${
-                          selectedOption === option ? "border-primary bg-primary/5" : "hover:bg-muted/50"
-                        }`}>
-                        <span className="font-medium mr-2">{String.fromCharCode(65 + index)}.</span>{option}
-                      </button>
-                    ))}
+                    {(question.options as string[]).map((option, index) => {
+                      const optionValue = String(index + 1)
+                      return (
+                        <button key={index} onClick={() => setSelectedOption(optionValue)}
+                          className={`w-full text-left rounded-lg border p-3 transition-colors ${
+                            selectedOption === optionValue ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                          }`}>
+                          <span className="font-medium mr-2">{String.fromCharCode(65 + index)}.</span>{option}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
                 {question.type === "FILL" && (
@@ -709,15 +716,18 @@ export default function PracticePage() {
 
                 {currentQ.type === "CHOICE" && currentQ.options && (
                   <div className="space-y-2">
-                    {(currentQ.options as string[]).map((option, index) => (
-                      <button key={index}
-                        onClick={() => setExamAnswers((prev) => ({ ...prev, [currentQ.id]: option }))}
-                        className={`w-full text-left rounded-lg border p-3 transition-colors ${
-                          currentAnswer === option ? "border-primary bg-primary/5" : "hover:bg-muted/50"
-                        }`}>
-                        <span className="font-medium mr-2">{String.fromCharCode(65 + index)}.</span>{option}
-                      </button>
-                    ))}
+                    {(currentQ.options as string[]).map((option, index) => {
+                      const optionValue = String(index + 1)
+                      return (
+                        <button key={index}
+                          onClick={() => setExamAnswers((prev) => ({ ...prev, [currentQ.id]: optionValue }))}
+                          className={`w-full text-left rounded-lg border p-3 transition-colors ${
+                            currentAnswer === optionValue ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                          }`}>
+                          <span className="font-medium mr-2">{String.fromCharCode(65 + index)}.</span>{option}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
 
