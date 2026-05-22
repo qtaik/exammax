@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { BookOpen, Trophy, ShoppingBag, RotateCcw, BarChart3, Users, HelpCircle, Settings, LogOut, Home, CalendarCheck, Award, User, FileText, School } from "lucide-react"
+import { BookOpen, Trophy, ShoppingBag, RotateCcw, BarChart3, Users, HelpCircle, Settings, LogOut, Home, CalendarCheck, Award, User, FileText, School, Sparkles, Tag } from "lucide-react"
 
 interface User {
   id: string
@@ -22,6 +22,7 @@ const navItems = [
   { href: "/dashboard/leaderboard", label: "排行榜", icon: Trophy, roles: ["STUDENT", "TEACHER", "ADMIN"] },
   { href: "/dashboard/achievements", label: "成就勋章", icon: Award, roles: ["STUDENT", "TEACHER", "ADMIN"] },
   { href: "/dashboard/shop", label: "积分商店", icon: ShoppingBag, roles: ["STUDENT", "TEACHER", "ADMIN"] },
+  { href: "/dashboard/lottery", label: "积分抽奖", icon: Sparkles, roles: ["STUDENT", "TEACHER", "ADMIN"] },
   { href: "/dashboard/profile", label: "个人主页", icon: User, roles: ["STUDENT", "TEACHER", "ADMIN"] },
 ]
 
@@ -32,6 +33,7 @@ const adminItems = [
   { href: "/dashboard/admin/users", label: "用户管理", icon: Users, roles: ["ADMIN"] },
   { href: "/dashboard/admin/questions", label: "题库管理", icon: HelpCircle, roles: ["ADMIN"] },
   { href: "/dashboard/admin/account-codes", label: "账户码管理", icon: Settings, roles: ["ADMIN"] },
+  { href: "/dashboard/admin/titles", label: "称号管理", icon: Tag, roles: ["ADMIN"] },
   { href: "/dashboard/admin/stats", label: "数据统计", icon: BarChart3, roles: ["ADMIN"] },
   { href: "/dashboard/admin/settings", label: "系统设置", icon: Settings, roles: ["ADMIN"] },
 ]
