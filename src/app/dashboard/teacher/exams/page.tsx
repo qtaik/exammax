@@ -122,8 +122,11 @@ export default function TeacherExamsPage() {
 
   const handleRandomSelect = () => {
     const count = parseInt(randomCount)
-    if (!count || count < 1 || count > questionPool.length) return
-    const available = questionPool.filter((q) => !selectedIds.includes(q.id))
+    if (!count || count < 1) return
+    const available = questionPool
+      .filter((q) => !selectedIds.includes(q.id))
+      .filter((q) => selectedCategoryIds.length === 0 || selectedCategoryIds.includes(q.category.id))
+    if (count > available.length) return
     const shuffled = [...available].sort(() => Math.random() - 0.5)
     const picked = shuffled.slice(0, Math.min(count, available.length))
     setSelectedIds((prev) => [...prev, ...picked.map((q) => q.id)])
