@@ -11,11 +11,18 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url)
     const classId = searchParams.get("classId")
 
-    if ((user!.role === "TEACHER" || user!.role === "ADMIN") && classId) {
-      // 教师查看某班级的考试列表
+    if (user!.role === "TEACHER" || user!.role === "ADMIN") {
+      const where: Record<string, unknown> = {}
+      if (classId) {
+        where.classId = classId
+      } else if (user!.role !== "ADMIN") {
+        // TEACHER without classId: no owned classes to show
+        return NextResponse.json({ tasks: [] })
+      }
       const tasks = await prisma.task.findMany({
-        where: { classId },
+        where,
         include: {
+          class: { select: { id: true, name: true } },
           _count: { select: { submissions: true } },
         },
         orderBy: { createdAt: "desc" },

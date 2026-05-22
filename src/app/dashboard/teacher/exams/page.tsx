@@ -61,7 +61,7 @@ export default function TeacherExamsPage() {
   const [previewQ, setPreviewQ] = useState<Question | null>(null)
 
   const fetchExams = useCallback(async () => {
-    if (!selectedClass) return
+    if (!selectedClass) { setLoading(false); return }
     setLoading(true)
     try {
       const token = localStorage.getItem("token")

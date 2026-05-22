@@ -11,12 +11,17 @@ export async function GET(req: Request) {
     let classes
 
     if (user.role === "TEACHER" || user.role === "ADMIN") {
-      // 教师：查看自己创建的班级
-      const teacherId = user.role === "ADMIN"
-        ? (new URL(req.url)).searchParams.get("teacherId") || user.userId
-        : user.userId
+      const url = new URL(req.url)
+      const teacherIdParam = url.searchParams.get("teacherId")
+      const where: Record<string, unknown> = {}
+      // ADMIN without teacherId filter: see all classes
+      if (user.role === "ADMIN" && !teacherIdParam) {
+        // no where filter
+      } else {
+        where.teacherId = teacherIdParam || user.userId
+      }
       classes = await prisma.class.findMany({
-        where: { teacherId },
+        where,
         include: {
           _count: { select: { members: true, tasks: true } },
         },
