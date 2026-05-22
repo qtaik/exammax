@@ -70,23 +70,50 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       })
     )
 
-    await prisma.taskSubmission.update({
-      where: { id: submission.id },
-      data: {
-        status: "COMPLETED",
-        completedAt: new Date(),
-        submittedAt: new Date(),
-        tabSwitches: tabSwitches || 0,
-        switchLog: switchLog || [],
-        perQuestionTime: perQuestionTime || {},
-      },
-    })
+    const allCorrect = correctCount === answers.length && answers.length > 0
+    const pointsEarned = allCorrect ? correctCount * 5 * 2 : correctCount * 5
+    const expEarned = 100 + correctCount * 10
+
+    await Promise.all([
+      prisma.taskSubmission.update({
+        where: { id: submission.id },
+        data: {
+          status: "COMPLETED",
+          completedAt: new Date(),
+          submittedAt: new Date(),
+          tabSwitches: tabSwitches || 0,
+          switchLog: switchLog || [],
+          perQuestionTime: perQuestionTime || {},
+        },
+      }),
+      prisma.user.update({
+        where: { id: user!.userId },
+        data: { points: { increment: pointsEarned }, experience: { increment: expEarned } },
+      }),
+      prisma.pointLog.create({
+        data: { userId: user!.userId, points: pointsEarned, reason: `考试答题 (${correctCount}/${answers.length})` },
+      }),
+    ])
+
+    // 检查升级 (渐进公式: 升至L+1需100×L经验)
+    const dbUser = await prisma.user.findUnique({ where: { id: user!.userId }, select: { experience: true, level: true } })
+    const newLevel = Math.floor((1 + Math.sqrt(1 + 8 * dbUser!.experience / 100)) / 2)
+    let leveledUp = false
+    if (newLevel > dbUser!.level) {
+      await prisma.user.update({ where: { id: user!.userId }, data: { level: newLevel } })
+      leveledUp = true
+    }
 
     return NextResponse.json({
       success: true,
       results: {
         total: answers.length,
         correct: correctCount,
+        pointsEarned,
+        expEarned,
+        allCorrect,
+        leveledUp,
+        newLevel: leveledUp ? expectedLevel : undefined,
       },
     })
   } catch (err) {

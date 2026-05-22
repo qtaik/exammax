@@ -82,7 +82,7 @@ export default function CheckInPage() {
   }
 
   const getPointsForDay = (day: number) => {
-    const points = 10 + (day - 1) * 5
+    const points = 5 + (day - 1) * 5
     return Math.min(points, 50)
   }
 

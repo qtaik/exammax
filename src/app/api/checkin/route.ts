@@ -85,10 +85,11 @@ export async function POST(req: Request) {
 
     // Calculate points earned: 5 + (streakDays - 1) * 5, cap at 50
     const pointsEarned = Math.min(5 + (newStreakDays - 1) * 5, 50)
+    const expEarned = 10 // 签到固定10经验
 
-    // Calculate new level: floor(experience / 100) + 1
-    const newExperience = dbUser.experience + pointsEarned
-    const newLevel = Math.floor(newExperience / 100) + 1
+    // 渐进升级公式: 升至L+1需100×L经验
+    const newExperience = dbUser.experience + expEarned
+    const newLevel = Math.floor((1 + Math.sqrt(1 + 8 * newExperience / 100)) / 2)
     const leveledUp = newLevel > dbUser.level
 
     // Update user and create point log in a transaction
@@ -97,7 +98,7 @@ export async function POST(req: Request) {
         where: { id: user!.userId },
         data: {
           points: { increment: pointsEarned },
-          experience: { increment: pointsEarned },
+          experience: { increment: expEarned },
           streakDays: newStreakDays,
           lastCheckIn: now,
           level: newLevel,

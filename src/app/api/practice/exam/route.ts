@@ -39,7 +39,6 @@ export async function POST(req: Request) {
       explanation: string
     }[] = []
 
-    let totalPoints = 0
     let correctCount = 0
 
     for (const ans of answers) {
@@ -61,8 +60,6 @@ export async function POST(req: Request) {
           break
       }
 
-      const points = correct ? 10 + question.difficulty * 5 : 1
-      totalPoints += points
       if (correct) correctCount++
 
       results.push({
@@ -74,22 +71,47 @@ export async function POST(req: Request) {
       })
     }
 
-    // 只记录答题历史，不给积分
-    await prisma.answerRecord.createMany({
-      data: results.map((r) => ({
-        userId: authResult.user!.userId,
-        questionId: r.questionId,
-        userAnswer: r.userAnswer,
-        isCorrect: r.correct,
-        timeSpent: Math.floor(totalTime / answers.length),
-      })),
-    })
+    const allCorrect = correctCount === answers.length && answers.length > 0
+    const pointsEarned = allCorrect ? correctCount * 5 * 2 : correctCount * 5
+    const expEarned = 100 + correctCount * 10
+
+    await Promise.all([
+      prisma.answerRecord.createMany({
+        data: results.map((r) => ({
+          userId: authResult.user!.userId,
+          questionId: r.questionId,
+          userAnswer: r.userAnswer,
+          isCorrect: r.correct,
+          timeSpent: Math.floor(totalTime / answers.length),
+        })),
+      }),
+      prisma.user.update({
+        where: { id: authResult.user!.userId },
+        data: { points: { increment: pointsEarned }, experience: { increment: expEarned } },
+      }),
+      prisma.pointLog.create({
+        data: { userId: authResult.user!.userId, points: pointsEarned, reason: `模拟考试 (${correctCount}/${answers.length})` },
+      }),
+    ])
+
+    // 检查升级
+    const dbUser = await prisma.user.findUnique({ where: { id: authResult.user!.userId }, select: { experience: true, level: true } })
+    const newLevel = Math.floor((1 + Math.sqrt(1 + 8 * dbUser!.experience / 100)) / 2)
+    let leveledUp = false
+    if (newLevel > dbUser!.level) {
+      await prisma.user.update({ where: { id: authResult.user!.userId }, data: { level: newLevel } })
+      leveledUp = true
+    }
 
     return NextResponse.json({
       total: answers.length,
       correct: correctCount,
       accuracy: Math.round((correctCount / answers.length) * 100),
-      pointsEarned: 0,
+      pointsEarned,
+      expEarned,
+      allCorrect,
+      leveledUp,
+      newLevel: leveledUp ? newLevel : undefined,
       timeSpent: totalTime,
       results,
     })

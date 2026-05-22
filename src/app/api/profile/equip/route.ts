@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth"
 
-const MAX_EQUIPPED = 5
+const MAX_EQUIPPED = 1
 
 export async function GET(req: Request) {
   const { error, user } = await requireAuth(req)
@@ -108,20 +108,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "该徽章已装备" }, { status: 400 })
     }
 
-    // Check how many badges are currently equipped
-    const equippedCount = await prisma.userBadge.count({
-      where: {
-        userId: user!.userId,
-        equipped: true,
-      },
+    // 自动卸下当前装备的徽章（最多1个）
+    await prisma.userBadge.updateMany({
+      where: { userId: user!.userId, equipped: true },
+      data: { equipped: false },
     })
-
-    if (equippedCount >= MAX_EQUIPPED) {
-      return NextResponse.json(
-        { error: `最多只能装备 ${MAX_EQUIPPED} 个徽章` },
-        { status: 400 }
-      )
-    }
 
     // Equip the badge
     await prisma.userBadge.update({
