@@ -256,6 +256,11 @@ export default function StudentExamPage() {
     const elapsed = Math.floor((Date.now() - qStartRef.current) / 1000)
     const finalPerTime = { ...perQuestionTime, [q.id]: (perQuestionTime[q.id] || 0) + elapsed }
 
+    // DEBUG: trace timeSpent calculation
+    console.log("[Submit] perQuestionTime state:", JSON.stringify(perQuestionTime))
+    console.log("[Submit] currentIdx:", currentIdx, "elapsed:", elapsed)
+    console.log("[Submit] finalPerTime:", JSON.stringify(finalPerTime))
+
     try {
       const token = localStorage.getItem("token")
       const answerList = data.task.questions.map((q) => ({
