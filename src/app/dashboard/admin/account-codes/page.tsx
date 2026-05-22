@@ -323,7 +323,7 @@ export default function AdminAccountCodesPage() {
                       <td className="py-3 px-2">{formatDate(code.createdAt)}</td>
                       <td className="py-3 px-2">
                         <div className="flex gap-1">
-                          {(code.status === "ACTIVE" || code.status === "EXPIRED") && (
+                          {(code.status === "ACTIVE" || code.status === "EXPIRED" || code.status === "REVOKED") && (
                             <Button
                               variant="ghost"
                               size="sm"
