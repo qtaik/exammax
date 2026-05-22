@@ -54,8 +54,14 @@ export async function POST(req: Request) {
       )
     }
 
-    // 非 Admin 用户检查账户码状态
-    if (user.role !== "ADMIN" && user.accountCodeId) {
+    // 非 Admin 用户必须有有效账户码
+    if (user.role !== "ADMIN") {
+      if (!user.accountCodeId) {
+        return NextResponse.json(
+          { error: "账户未绑定有效码，请联系管理员" },
+          { status: 401 }
+        )
+      }
       const accountCode = await prisma.accountCode.findUnique({
         where: { id: user.accountCodeId },
         select: { status: true, expiresAt: true },

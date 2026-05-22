@@ -42,8 +42,11 @@ export async function requireAuth(req: Request) {
     const token = authHeader.slice(7)
     const payload = verifyToken(token)
 
-    // 非 Admin 用户检查账户码状态（立即踢出已吊销/已过期的账户）
-    if (payload.role !== "ADMIN" && payload.accountCodeId) {
+    // 非 Admin 用户必须有有效账户码
+    if (payload.role !== "ADMIN") {
+      if (!payload.accountCodeId) {
+        return { error: NextResponse.json({ error: "账户未绑定有效码，请联系管理员" }, { status: 401 }), user: null }
+      }
       const code = await prisma.accountCode.findUnique({
         where: { id: payload.accountCodeId },
         select: { status: true },
