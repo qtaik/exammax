@@ -72,7 +72,6 @@ export default function StudentExamPage() {
   const perQuestionTimeRef = useRef<Record<string, number>>({})
   const currentIdxRef = useRef(0)
   const maxSwitchesRef = useRef(3)
-  const reenteringFsRef = useRef(false)
 
   // Keep refs in sync
   useEffect(() => { tabSwitchesRef.current = tabSwitches }, [tabSwitches])
@@ -175,45 +174,58 @@ export default function StudentExamPage() {
       }
     }
 
+    const reenterFullscreen = () => {
+      if (!document.fullscreenElement && !submitting) {
+        document.documentElement.requestFullscreen().then(() => {
+          setIsFullscreen(true)
+        }).catch(() => {})
+      }
+    }
+
     const handleVisibility = () => {
       if (document.hidden) {
-        switchStartRef.current = new Date().toISOString()
-        setSwitchStartTime(switchStartRef.current)
-      } else if (!reenteringFsRef.current) {
-        recordSwitch()
+        if (!switchStartRef.current) {
+          switchStartRef.current = new Date().toISOString()
+          setSwitchStartTime(switchStartRef.current)
+        }
+      } else {
+        if (switchStartRef.current) {
+          recordSwitch()
+        }
+        reenterFullscreen()
       }
     }
 
     const handleBlur = () => {
-      if (!switchStartRef.current && !reenteringFsRef.current) {
+      if (!switchStartRef.current) {
         switchStartRef.current = new Date().toISOString()
         setSwitchStartTime(switchStartRef.current)
       }
     }
 
     const handleFocus = () => {
-      if (switchStartRef.current && !document.hidden && !reenteringFsRef.current) {
+      if (switchStartRef.current && !document.hidden) {
         recordSwitch()
+        reenterFullscreen()
       }
     }
 
-    // 退出全屏检测：自动重新全屏，不计为切屏
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement && data.submission.status === "PENDING") {
         setIsFullscreen(false)
-        reenteringFsRef.current = true
-        // 取消全屏退出导致的 blur 记录
-        if (switchStartRef.current) {
-          switchStartRef.current = null
-          setSwitchStartTime(null)
+
+        if (!document.hidden) {
+          // Esc key: user is still looking at the page. Not a tab switch.
+          // Cancel any pending switch recording.
+          if (switchStartRef.current) {
+            switchStartRef.current = null
+            setSwitchStartTime(null)
+          }
+          reenterFullscreen()
         }
-        setTimeout(async () => {
-          try {
-            await document.documentElement.requestFullscreen()
-            setIsFullscreen(true)
-          } catch {}
-          reenteringFsRef.current = false
-        }, 200)
+        // If document.hidden (Alt+Tab): browser auto-exited fullscreen.
+        // Don't interfere — blur/visibilitychange handle switch counting.
+        // Fullscreen re-entry happens in handleFocus when user returns.
       }
     }
 
