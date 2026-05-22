@@ -71,6 +71,8 @@ export default function StudentExamPage() {
   const handleSubmitRef = useRef<() => Promise<void>>(async () => {})
   const perQuestionTimeRef = useRef<Record<string, number>>({})
   const currentIdxRef = useRef(0)
+  const maxSwitchesRef = useRef(3)
+  const reenteringFsRef = useRef(false)
 
   // Keep refs in sync
   useEffect(() => { tabSwitchesRef.current = tabSwitches }, [tabSwitches])
@@ -79,6 +81,7 @@ export default function StudentExamPage() {
   useEffect(() => { switchStartRef.current = switchStartTime }, [switchStartTime])
   useEffect(() => { perQuestionTimeRef.current = perQuestionTime }, [perQuestionTime])
   useEffect(() => { currentIdxRef.current = currentIdx }, [currentIdx])
+  useEffect(() => { maxSwitchesRef.current = maxSwitches }, [maxSwitches])
 
   // --- Fetch exam ---
   useEffect(() => {
@@ -160,9 +163,15 @@ export default function StudentExamPage() {
         const duration = Math.floor((Date.now() - new Date(start).getTime()) / 1000)
         switchLogRef.current = [...switchLogRef.current, { time: start, duration }]
         setSwitchLog(switchLogRef.current)
-        setTabSwitches((prev) => prev + 1)
+        const newCount = tabSwitchesRef.current + 1
+        tabSwitchesRef.current = newCount
+        setTabSwitches(newCount)
         switchStartRef.current = null
         setSwitchStartTime(null)
+
+        if (newCount >= maxSwitchesRef.current) {
+          handleSubmitRef.current()
+        }
       }
     }
 
@@ -170,32 +179,54 @@ export default function StudentExamPage() {
       if (document.hidden) {
         switchStartRef.current = new Date().toISOString()
         setSwitchStartTime(switchStartRef.current)
-      } else {
+      } else if (!reenteringFsRef.current) {
         recordSwitch()
       }
     }
 
     const handleBlur = () => {
-      if (!switchStartRef.current) {
+      if (!switchStartRef.current && !reenteringFsRef.current) {
         switchStartRef.current = new Date().toISOString()
         setSwitchStartTime(switchStartRef.current)
       }
     }
 
     const handleFocus = () => {
-      if (switchStartRef.current && !document.hidden) {
+      if (switchStartRef.current && !document.hidden && !reenteringFsRef.current) {
         recordSwitch()
+      }
+    }
+
+    // 退出全屏检测：自动重新全屏，不计为切屏
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && data.submission.status === "PENDING") {
+        setIsFullscreen(false)
+        reenteringFsRef.current = true
+        // 取消全屏退出导致的 blur 记录
+        if (switchStartRef.current) {
+          switchStartRef.current = null
+          setSwitchStartTime(null)
+        }
+        setTimeout(async () => {
+          try {
+            await document.documentElement.requestFullscreen()
+            setIsFullscreen(true)
+          } catch {}
+          reenteringFsRef.current = false
+        }, 200)
       }
     }
 
     document.addEventListener("visibilitychange", handleVisibility)
     window.addEventListener("blur", handleBlur)
     window.addEventListener("focus", handleFocus)
+    document.addEventListener("fullscreenchange", handleFullscreenChange)
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibility)
       window.removeEventListener("blur", handleBlur)
       window.removeEventListener("focus", handleFocus)
+      document.removeEventListener("fullscreenchange", handleFullscreenChange)
     }
   }, [data])
 
