@@ -80,7 +80,22 @@ export default function AdminAccountCodesPage() {
   const [extendOpen, setExtendOpen] = useState<AccountCodeItem | null>(null)
   const [extendExpiry, setExtendExpiry] = useState("")
 
+  const [timezone, setTimezone] = useState("Asia/Shanghai")
+
   const getToken = () => localStorage.getItem("token")
+
+  // 读取系统时区设置
+  useEffect(() => {
+    const t = getToken()
+    if (!t) return
+    fetch("/api/admin/settings", { headers: { Authorization: `Bearer ${t}` } })
+      .then(r => r.json())
+      .then(data => {
+        const tz = (data.settings || []).find((s: any) => s.key === "timezone")
+        if (tz) setTimezone(tz.value)
+      })
+      .catch(() => {})
+  }, [])
 
   const fetchCodes = useCallback(async () => {
     setLoading(true)
@@ -240,9 +255,26 @@ export default function AdminAccountCodesPage() {
     return code
   }
 
-  const formatDate = (dateStr: string | null) => {
+  const fmt = (dateStr: string | null, opts: Intl.DateTimeFormatOptions) => {
     if (!dateStr) return "-"
-    return new Date(dateStr).toLocaleDateString("zh-CN")
+    try {
+      return new Intl.DateTimeFormat("zh-CN", { timeZone: timezone, ...opts }).format(new Date(dateStr))
+    } catch { return "-" }
+  }
+
+  // 将 UTC 时间字符串转为目标时区的 datetime-local 值
+  const toDatetimeLocal = (dateStr: string | null) => {
+    if (!dateStr) return ""
+    try {
+      const d = new Date(dateStr)
+      const parts = new Intl.DateTimeFormat("sv-SE", {
+        timeZone: timezone,
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit",
+      }).formatToParts(d)
+      const get = (t: string) => parts.find(p => p.type === t)?.value || "00"
+      return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`
+    } catch { return "" }
   }
 
   return (
@@ -319,8 +351,8 @@ export default function AdminAccountCodesPage() {
                       </td>
                       <td className="py-3 px-2">{roleLabels[code.role] || code.role}</td>
                       <td className="py-3 px-2">{code.boundUser?.username || "-"}</td>
-                      <td className="py-3 px-2">{formatDate(code.expiresAt)}</td>
-                      <td className="py-3 px-2">{formatDate(code.createdAt)}</td>
+                      <td className="py-3 px-2">{fmt(code.expiresAt, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</td>
+                      <td className="py-3 px-2">{fmt(code.createdAt, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</td>
                       <td className="py-3 px-2">
                         <div className="flex gap-1">
                           {(code.status === "ACTIVE" || code.status === "EXPIRED" || code.status === "REVOKED") && (
@@ -329,7 +361,7 @@ export default function AdminAccountCodesPage() {
                               size="sm"
                               onClick={() => {
                                 setExtendOpen(code)
-                                setExtendExpiry(code.expiresAt ? (() => { const d = new Date(code.expiresAt); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + 'T' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') })() : "")
+                                setExtendExpiry(toDatetimeLocal(code.expiresAt))
                               }}
                             >
                               <Clock className="h-4 w-4 mr-1" />
