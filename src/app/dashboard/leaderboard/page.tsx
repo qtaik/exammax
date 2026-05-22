@@ -4,38 +4,41 @@ import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Trophy, Medal, Crown } from "lucide-react"
+import { Trophy, Medal, Crown, Shield, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-interface EquippedBadge {
+interface BadgeInfo {
   id: string
   name: string
   icon: string | null
 }
-
-interface LeaderboardUser {
+interface TitleInfo {
   id: string
-  username: string
-  role: string
-  points: number
-  experience: number
-  level: number
-  streakDays: number
-  activeTitle?: { name: string } | null
-  equippedBadges?: EquippedBadge[]
+  name: string
+  icon: string | null
 }
-
-interface CurrentUserInfo {
-  id: string
+interface LeaderboardEntry {
+  userId: string
   username: string
   role: string
-  points: number
-  experience: number
   level: number
-  streakDays: number
+  accuracy: number
+  correct: number
+  total: number
+  equippedBadge: BadgeInfo | null
+  activeTitle: TitleInfo | null
+  showBadgeFirst: boolean
+  className: string | null
+}
+interface ClassEntry {
+  id: string
+  name: string
+  memberCount: number
+  activeCount: number
+  avgAccuracy: number
+}
+interface CurrentUserInfo extends LeaderboardEntry {
   rank: number
-  activeTitle?: { name: string } | null
-  equippedBadges?: EquippedBadge[]
 }
 
 const roleLabels: Record<string, string> = {
@@ -45,45 +48,40 @@ const roleLabels: Record<string, string> = {
 }
 
 export default function LeaderboardPage() {
-  const [pointsLeaderboard, setPointsLeaderboard] = useState<LeaderboardUser[]>([])
-  const [expLeaderboard, setExpLeaderboard] = useState<LeaderboardUser[]>([])
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [currentUserPoints, setCurrentUserPoints] = useState<CurrentUserInfo | null>(null)
-  const [currentUserExp, setCurrentUserExp] = useState<CurrentUserInfo | null>(null)
+  const [type, setType] = useState<"practice" | "exam">("practice")
+  const [scope, setScope] = useState<"personal" | "class">("personal")
+  const [personalData, setPersonalData] = useState<{ practice: LeaderboardEntry[]; exam: LeaderboardEntry[] }>({ practice: [], exam: [] })
+  const [classData, setClassData] = useState<{ practice: ClassEntry[]; exam: ClassEntry[] }>({ practice: [], exam: [] })
+  const [currentUser, setCurrentUser] = useState<{ practice: CurrentUserInfo | null; exam: CurrentUserInfo | null }>({ practice: null, exam: null })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const token = localStorage.getItem("token")
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]))
-        setCurrentUserId(payload.userId)
-      } catch {
-        // ignore
-      }
-    }
+    const headers: Record<string, string> = {}
+    if (token) headers.Authorization = `Bearer ${token}`
 
-    const fetchLeaderboard = async (type: string) => {
-      const headers: Record<string, string> = {}
-      if (token) headers.Authorization = `Bearer ${token}`
+    const fetchData = (t: string, s: string) =>
+      fetch(`/api/leaderboard?type=${t}&scope=${s}`, { headers }).then((r) => r.json())
 
-      const res = await fetch(`/api/leaderboard?type=${type}&limit=50`, { headers })
-      if (res.ok) {
-        return res.json()
-      }
-      return null
-    }
-
-    Promise.all([fetchLeaderboard("points"), fetchLeaderboard("experience")])
-      .then(([pointsData, expData]) => {
-        if (pointsData) {
-          setPointsLeaderboard(pointsData.leaderboard || [])
-          setCurrentUserPoints(pointsData.currentUser || null)
-        }
-        if (expData) {
-          setExpLeaderboard(expData.leaderboard || [])
-          setCurrentUserExp(expData.currentUser || null)
-        }
+    Promise.all([
+      fetchData("practice", "personal"),
+      fetchData("exam", "personal"),
+      fetchData("practice", "class"),
+      fetchData("exam", "class"),
+    ])
+      .then(([pPersonal, ePersonal, pClass, eClass]) => {
+        setPersonalData({
+          practice: pPersonal.leaderboard || [],
+          exam: ePersonal.leaderboard || [],
+        })
+        setClassData({
+          practice: pClass.leaderboard || [],
+          exam: eClass.leaderboard || [],
+        })
+        setCurrentUser({
+          practice: pPersonal.currentUser || null,
+          exam: ePersonal.currentUser || null,
+        })
       })
       .finally(() => setLoading(false))
   }, [])
@@ -95,115 +93,116 @@ export default function LeaderboardPage() {
     return <span className="text-sm text-muted-foreground w-5 text-center">{rank}</span>
   }
 
-  const renderBadges = (badges?: EquippedBadge[]) => {
-    if (!badges || badges.length === 0) return null
+  const renderBadgeAndTitle = (entry: LeaderboardEntry) => {
+    const badgeEl = entry.equippedBadge ? (
+      <span className="text-sm" title={entry.equippedBadge.name}>
+        {entry.equippedBadge.icon}
+      </span>
+    ) : null
+    const titleEl = entry.activeTitle ? (
+      <Badge variant="secondary" className="text-xs shrink-0">
+        {entry.activeTitle.icon} {entry.activeTitle.name}
+      </Badge>
+    ) : null
+
+    if (entry.showBadgeFirst) {
+      return <>{badgeEl}{titleEl}</>
+    }
+    return <>{titleEl}{badgeEl}</>
+  }
+
+  const renderPersonalTable = (entries: LeaderboardEntry[], curUser: CurrentUserInfo | null) => {
+    if (entries.length === 0) {
+      return <div className="text-center py-12 text-muted-foreground">暂无排行数据</div>
+    }
+
+    const inList = curUser && entries.some((e) => e.userId === curUser.userId)
+
     return (
-      <div className="flex gap-0.5">
-        {badges.slice(0, 5).map((b) => (
-          <span key={b.id} className="text-xs" title={b.name}>
-            {b.icon || "🏅"}
-          </span>
-        ))}
+      <div className="space-y-0">
+        <div className="grid grid-cols-[50px_1fr_60px_70px_70px] gap-2 px-4 py-3 text-sm font-medium text-muted-foreground border-b">
+          <div>排名</div>
+          <div>用户</div>
+          <div>班级</div>
+          <div>正确率</div>
+          <div>正确/总</div>
+        </div>
+        {entries.map((entry, index) => {
+          const rank = index + 1
+          const isMe = curUser && entry.userId === curUser.userId
+          return (
+            <div
+              key={entry.userId}
+              className={cn(
+                "grid grid-cols-[50px_1fr_60px_70px_70px] gap-2 px-4 py-3 items-center border-b last:border-b-0",
+                isMe && "bg-primary/5 border-l-2 border-l-primary"
+              )}
+            >
+              <div className="flex justify-center">{getRankIcon(rank)}</div>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className={cn("font-medium truncate text-sm", isMe && "text-primary font-bold")}>
+                  {entry.username}
+                </span>
+                {isMe && <Badge variant="secondary" className="text-xs shrink-0">我</Badge>}
+                {renderBadgeAndTitle(entry)}
+              </div>
+              <div className="text-xs text-muted-foreground truncate">{entry.className || "-"}</div>
+              <div className="text-sm font-medium">{entry.accuracy}%</div>
+              <div className="text-xs text-muted-foreground">{entry.correct}/{entry.total}</div>
+            </div>
+          )
+        })}
+        {!inList && curUser && (
+          <>
+            <div className="px-4 py-2 text-center text-muted-foreground text-sm">· · ·</div>
+            <div className="grid grid-cols-[50px_1fr_60px_70px_70px] gap-2 px-4 py-3 items-center bg-primary/5 border-l-2 border-l-primary">
+              <div className="flex justify-center">
+                <span className="text-sm font-bold text-primary">{curUser.rank}</span>
+              </div>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="font-medium text-sm text-primary font-bold">{curUser.username}</span>
+                <Badge variant="secondary" className="text-xs shrink-0">我</Badge>
+                {renderBadgeAndTitle(curUser)}
+              </div>
+              <div className="text-xs text-muted-foreground truncate">{curUser.className || "-"}</div>
+              <div className="text-sm font-medium">{curUser.accuracy}%</div>
+              <div className="text-xs text-muted-foreground">{curUser.correct}/{curUser.total}</div>
+            </div>
+          </>
+        )}
       </div>
     )
   }
 
-  const renderUserCell = (
-    user: { username: string; role: string; activeTitle?: { name: string } | null; equippedBadges?: EquippedBadge[] },
-    isMe: boolean
-  ) => (
-    <div className="flex items-center gap-2 min-w-0">
-      <span className={cn("font-medium truncate", isMe && "text-primary font-bold")}>
-        {user.username}
-      </span>
-      {user.activeTitle && (
-        <Badge variant="secondary" className="text-xs shrink-0">
-          {user.activeTitle.name}
-        </Badge>
-      )}
-      {isMe && (
-        <Badge variant="secondary" className="text-xs shrink-0">
-          我
-        </Badge>
-      )}
-      <Badge variant="outline" className="text-xs shrink-0">
-        {roleLabels[user.role] || user.role}
-      </Badge>
-      {renderBadges(user.equippedBadges)}
-    </div>
-  )
-
-  const renderTable = (
-    leaderboard: LeaderboardUser[],
-    field: "points" | "experience",
-    currentUser: CurrentUserInfo | null
-  ) => {
-    if (leaderboard.length === 0) {
-      return (
-        <div className="text-center py-12 text-muted-foreground">
-          暂无排行数据
-        </div>
-      )
+  const renderClassTable = (entries: ClassEntry[]) => {
+    if (entries.length === 0) {
+      return <div className="text-center py-12 text-muted-foreground">暂无班级排行数据</div>
     }
-
-    const isInTop = leaderboard.some((u) => u.id === currentUserId)
 
     return (
       <div className="space-y-0">
-        {/* Table header */}
-        <div className="grid grid-cols-[60px_1fr_80px_100px_80px] gap-2 px-4 py-3 text-sm font-medium text-muted-foreground border-b">
+        <div className="grid grid-cols-[50px_1fr_80px_80px_80px] gap-2 px-4 py-3 text-sm font-medium text-muted-foreground border-b">
           <div>排名</div>
-          <div>用户</div>
-          <div>等级</div>
-          <div>{field === "points" ? "积分" : "经验值"}</div>
-          <div>连续打卡</div>
+          <div>班级</div>
+          <div>平均正确率</div>
+          <div>活跃人数</div>
+          <div>总人数</div>
         </div>
-
-        {/* Table rows */}
-        {leaderboard.map((user, index) => {
-          const rank = index + 1
-          const isMe = user.id === currentUserId
-
-          return (
-            <div
-              key={user.id}
-              className={cn(
-                "grid grid-cols-[60px_1fr_80px_100px_80px] gap-2 px-4 py-3 items-center border-b last:border-b-0 transition-colors",
-                isMe && "bg-primary/5 border-l-2 border-l-primary"
-              )}
-            >
-              <div className="flex items-center justify-center">
-                {getRankIcon(rank)}
-              </div>
-              {renderUserCell(user, isMe)}
-              <div className="text-sm">Lv.{user.level}</div>
-              <div className="text-sm font-medium">
-                {field === "points" ? user.points : user.experience}
-              </div>
-              <div className="text-sm">{user.streakDays} 天</div>
+        {entries.map((entry, index) => (
+          <div
+            key={entry.id}
+            className="grid grid-cols-[50px_1fr_80px_80px_80px] gap-2 px-4 py-3 items-center border-b last:border-b-0"
+          >
+            <div className="flex justify-center">{getRankIcon(index + 1)}</div>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="font-medium text-sm truncate">{entry.name}</span>
             </div>
-          )
-        })}
-
-        {/* Current user rank if not in top */}
-        {!isInTop && currentUser && (
-          <>
-            <div className="px-4 py-2 text-center text-muted-foreground text-sm">
-              · · ·
-            </div>
-            <div className="grid grid-cols-[60px_1fr_80px_100px_80px] gap-2 px-4 py-3 items-center bg-primary/5 border-l-2 border-l-primary border-b">
-              <div className="flex items-center justify-center">
-                <span className="text-sm font-bold text-primary">{currentUser.rank}</span>
-              </div>
-              {renderUserCell(currentUser, true)}
-              <div className="text-sm">Lv.{currentUser.level}</div>
-              <div className="text-sm font-medium">
-                {field === "points" ? currentUser.points : currentUser.experience}
-              </div>
-              <div className="text-sm">{currentUser.streakDays} 天</div>
-            </div>
-          </>
-        )}
+            <div className="text-sm font-medium">{entry.avgAccuracy}%</div>
+            <div className="text-sm">{entry.activeCount}</div>
+            <div className="text-sm text-muted-foreground">{entry.memberCount}</div>
+          </div>
+        ))}
       </div>
     )
   }
@@ -216,6 +215,10 @@ export default function LeaderboardPage() {
     )
   }
 
+  const current = type === "practice" ? currentUser.practice : currentUser.exam
+  const personal = type === "practice" ? personalData.practice : personalData.exam
+  const classL = type === "practice" ? classData.practice : classData.exam
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <h2 className="text-2xl font-bold flex items-center gap-2">
@@ -223,27 +226,42 @@ export default function LeaderboardPage() {
         排行榜
       </h2>
 
-      <Tabs defaultValue="points">
+      {/* Main type tabs */}
+      <Tabs value={type} onValueChange={(v) => setType(v as "practice" | "exam")}>
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="points">积分排行</TabsTrigger>
-          <TabsTrigger value="experience">经验排行</TabsTrigger>
+          <TabsTrigger value="practice">
+            <Shield className="h-4 w-4 mr-1" /> 刷题排行榜
+          </TabsTrigger>
+          <TabsTrigger value="exam">
+            <Trophy className="h-4 w-4 mr-1" /> 考试排行榜
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="points">
-          <Card>
-            <CardContent className="p-0">
-              {renderTable(pointsLeaderboard, "points", currentUserPoints)}
-            </CardContent>
-          </Card>
-        </TabsContent>
+        <div className="mt-4">
+          {/* Sub tabs: personal / class */}
+          <Tabs value={scope} onValueChange={(v) => setScope(v as "personal" | "class")}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="personal">个人排行</TabsTrigger>
+              <TabsTrigger value="class">班级排行</TabsTrigger>
+            </TabsList>
 
-        <TabsContent value="experience">
-          <Card>
-            <CardContent className="p-0">
-              {renderTable(expLeaderboard, "experience", currentUserExp)}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            <TabsContent value="personal" className="mt-4">
+              <Card>
+                <CardContent className="p-0">
+                  {renderPersonalTable(personal, current)}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="class" className="mt-4">
+              <Card>
+                <CardContent className="p-0">
+                  {renderClassTable(classL)}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
       </Tabs>
     </div>
   )

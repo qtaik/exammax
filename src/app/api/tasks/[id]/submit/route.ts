@@ -66,6 +66,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
             userAnswer: a.userAnswer,
             isCorrect,
             timeSpent: a.timeSpent || 0,
+            taskId: params.id,
           },
         })
       })
@@ -80,6 +81,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         where: { id: submission.id },
         data: {
           status: "COMPLETED",
+          correctCount,
+          totalCount: answers.length,
           completedAt: new Date(),
           submittedAt: new Date(),
           tabSwitches: tabSwitches || 0,

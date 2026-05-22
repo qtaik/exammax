@@ -138,6 +138,7 @@ model AnswerRecord {
   userAnswer String
   isCorrect  Boolean
   timeSpent  Int      // 秒
+  taskId     String?
   createdAt  DateTime @default(now())
 
   user       User     @relation(fields: [userId], references: [id])
@@ -195,6 +196,8 @@ model TaskSubmission {
   tabSwitches     Int        @default(0)
   switchLog       Json       @default("[]")  // [{time, duration}]
   perQuestionTime Json?      // {qId: seconds}
+  correctCount    Int        @default(0)
+  totalCount      Int        @default(0)
   submittedAt     DateTime?
   completedAt     DateTime?
   createdAt       DateTime   @default(now())
