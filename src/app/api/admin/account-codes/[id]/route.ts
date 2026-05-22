@@ -68,3 +68,32 @@ export async function PATCH(
     return NextResponse.json({ error: "更新账户码失败" }, { status: 500 })
   }
 }
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  const { error, user } = await requireAuth(req)
+  if (error) return error
+  const roleErr = requireRole(user!, ["ADMIN"])
+  if (roleErr) return roleErr
+
+  try {
+    const code = await prisma.accountCode.findUnique({
+      where: { id: params.id },
+      include: { boundUser: { select: { username: true } } },
+    })
+    if (!code) {
+      return NextResponse.json({ error: "账户码不存在" }, { status: 404 })
+    }
+    if (code.boundUser) {
+      return NextResponse.json({ error: `账户码已被用户 ${code.boundUser.username} 绑定，无法删除` }, { status: 400 })
+    }
+
+    await prisma.accountCode.delete({ where: { id: params.id } })
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error("Delete account code error:", err)
+    return NextResponse.json({ error: "删除账户码失败" }, { status: 500 })
+  }
+}

@@ -29,6 +29,7 @@ import {
   Copy,
   Clock,
   Undo2,
+  Trash2,
 } from "lucide-react"
 
 interface AccountCodeItem {
@@ -180,6 +181,24 @@ export default function AdminAccountCodesPage() {
       fetchCodes()
     } catch {
       alert("操作失败")
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("确定要删除此账户码吗？此操作不可撤销")) return
+    try {
+      const res = await fetch(`/api/admin/account-codes/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(data.error || "删除失败")
+        return
+      }
+      fetchCodes()
+    } catch {
+      alert("删除失败")
     }
   }
 
@@ -335,6 +354,16 @@ export default function AdminAccountCodesPage() {
                             >
                               <Undo2 className="h-4 w-4 mr-1" />
                               恢复
+                            </Button>
+                          )}
+                          {!code.boundUser && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(code.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive mr-1" />
+                              删除
                             </Button>
                           )}
                         </div>
