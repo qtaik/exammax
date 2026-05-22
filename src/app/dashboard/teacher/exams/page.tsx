@@ -17,11 +17,15 @@ interface Class {
   id: string; name: string
 }
 
+interface Category {
+  id: string; name: string; _count: { questions: number }
+}
+
 interface Question {
   id: string; type: string; content: string
   options: string[] | null
   answer: string
-  category: { name: string }
+  category: { id: string; name: string }
 }
 
 interface ExamItem {
@@ -51,6 +55,8 @@ export default function TeacherExamsPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [randomCount, setRandomCount] = useState("")
   const [questionSearch, setQuestionSearch] = useState("")
+  const [categories, setCategories] = useState<Category[]>([])
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [previewQ, setPreviewQ] = useState<Question | null>(null)
 
@@ -84,9 +90,15 @@ export default function TeacherExamsPage() {
     setSelectedIds([])
     setRandomCount("")
     setQuestionSearch("")
+    setSelectedCategoryIds([])
     try {
-      const res = await fetch("/api/practice?mode=all")
-      setQuestionPool((await res.json()).questions || [])
+      const [qRes, catRes] = await Promise.all([
+        fetch("/api/practice?mode=all"),
+        fetch("/api/categories"),
+      ])
+      const [qData, catData] = await Promise.all([qRes.json(), catRes.json()])
+      setQuestionPool(qData.questions || [])
+      setCategories(catData.categories || [])
     } catch {}
   }
 
@@ -263,9 +275,30 @@ export default function TeacherExamsPage() {
                     onChange={(e) => setQuestionSearch(e.target.value)}
                   />
                 </div>
+                {/* Category filter badges */}
+                <div className="flex gap-1 flex-wrap mb-2">
+                  {categories.map((cat) => {
+                    const active = selectedCategoryIds.includes(cat.id)
+                    return (
+                      <Badge
+                        key={cat.id}
+                        variant={active ? "default" : "outline"}
+                        className="cursor-pointer text-xs"
+                        onClick={() => {
+                          setSelectedCategoryIds((prev) =>
+                            active ? prev.filter((id) => id !== cat.id) : [...prev, cat.id]
+                          )
+                        }}
+                      >
+                        {cat.name} ({cat._count.questions})
+                      </Badge>
+                    )
+                  })}
+                </div>
                 <div className="max-h-[50vh] overflow-y-auto border rounded-lg divide-y">
                   {questionPool
                     .filter((q) => !selectedIds.includes(q.id))
+                    .filter((q) => selectedCategoryIds.length === 0 || selectedCategoryIds.includes(q.category.id))
                     .filter((q) => !questionSearch || q.content.includes(questionSearch) || q.category.name.includes(questionSearch))
                     .map((q) => (
                       <div key={q.id} className="flex items-center gap-2 p-2 hover:bg-muted/30 text-sm">
@@ -277,7 +310,10 @@ export default function TeacherExamsPage() {
                         <button className="text-xs hover:underline text-muted-foreground shrink-0" onClick={() => setPreviewQ(q)}>预览</button>
                       </div>
                     ))}
-                  {questionPool.filter((q) => !selectedIds.includes(q.id)).filter((q) => !questionSearch || q.content.includes(questionSearch)).length === 0 && (
+                  {questionPool
+                    .filter((q) => !selectedIds.includes(q.id))
+                    .filter((q) => selectedCategoryIds.length === 0 || selectedCategoryIds.includes(q.category.id))
+                    .filter((q) => !questionSearch || q.content.includes(questionSearch)).length === 0 && (
                     <p className="text-xs text-muted-foreground text-center py-4">暂无题目</p>
                   )}
                 </div>
@@ -292,7 +328,7 @@ export default function TeacherExamsPage() {
                     className="w-12 rounded-md border px-1.5 py-0.5 text-xs outline-none focus:ring-2 focus:ring-primary"
                     placeholder="N"
                     min="1"
-                    max={questionPool.filter((q) => !selectedIds.includes(q.id)).length}
+                    max={questionPool.filter((q) => !selectedIds.includes(q.id)).filter((q) => selectedCategoryIds.length === 0 || selectedCategoryIds.includes(q.category.id)).length}
                     value={randomCount}
                     onChange={(e) => setRandomCount(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") handleRandomSelect() }}

@@ -28,7 +28,7 @@ export async function GET(req: Request) {
           options: true,
           difficulty: true,
           imageUrl: true,
-          category: { select: { name: true } },
+          category: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: "desc" },
       })
