@@ -11,7 +11,7 @@ export async function GET(req: Request) {
       include: {
         users: {
           where: { userId: user!.userId },
-          select: { earnedAt: true },
+          select: { earnedAt: true, equipped: true },
         },
       },
       orderBy: { createdAt: "asc" },
@@ -24,6 +24,7 @@ export async function GET(req: Request) {
       description: badge.description,
       condition: badge.condition,
       earned: badge.users.length > 0,
+      equipped: badge.users.length > 0 ? badge.users[0].equipped : false,
       earnedAt: badge.users.length > 0 ? badge.users[0].earnedAt.toISOString() : undefined,
     }))
 
