@@ -4,7 +4,7 @@ import { requireAuth } from "@/lib/auth"
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
-    const authResult = requireAuth(req)
+    const authResult = await requireAuth(req)
     if (authResult.error) return authResult.error
 
     const cls = await prisma.class.findUnique({
@@ -38,7 +38,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
-    const authResult = requireAuth(req)
+    const authResult = await requireAuth(req)
     if (authResult.error) return authResult.error
     if (!["TEACHER", "ADMIN"].includes(authResult.user!.role)) {
       return NextResponse.json({ error: "无权限" }, { status: 403 })
@@ -73,7 +73,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
-    const authResult = requireAuth(req)
+    const authResult = await requireAuth(req)
     if (authResult.error) return authResult.error
     if (!["TEACHER", "ADMIN"].includes(authResult.user!.role)) {
       return NextResponse.json({ error: "无权限" }, { status: 403 })

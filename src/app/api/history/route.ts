@@ -4,7 +4,7 @@ import { requireAuth } from "@/lib/auth"
 
 export async function GET(req: Request) {
   try {
-    const authResult = requireAuth(req)
+    const authResult = await requireAuth(req)
     if (authResult.error) {
       return authResult.error
     }

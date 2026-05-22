@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { Role } from "@prisma/client"
 
 export async function GET(req: Request) {
-  const { error, user } = requireAuth(req)
+  const { error, user } = await requireAuth(req)
   if (error) return error
   if (!["ADMIN", "TEACHER"].includes(user!.role)) {
     return NextResponse.json({ error: "无权限" }, { status: 403 })
@@ -58,7 +58,7 @@ export async function GET(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-  const { error, user } = requireAuth(req)
+  const { error, user } = await requireAuth(req)
   if (error) return error
   const roleErr = requireRole(user!, ["ADMIN"])
   if (roleErr) return roleErr

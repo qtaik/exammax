@@ -7,7 +7,7 @@ import {
 
 export async function GET(req: Request) {
   try {
-    const authResult = requireAuth(req)
+    const authResult = await requireAuth(req)
     if (authResult.error) return authResult.error
 
     const { searchParams } = new URL(req.url)
@@ -35,7 +35,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const authResult = requireAuth(req)
+    const authResult = await requireAuth(req)
     if (authResult.error) return authResult.error
 
     const { questionId, correct, userAnswer } = await req.json()

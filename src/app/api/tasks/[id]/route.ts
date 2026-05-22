@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
-  const { error, user } = requireAuth(req)
+  const { error, user } = await requireAuth(req)
   if (error) return error
 
   try {
@@ -135,7 +135,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
-    const { error, user } = requireAuth(req)
+    const { error, user } = await requireAuth(req)
     if (error) return error
     if (!["TEACHER", "ADMIN"].includes(user!.role)) {
       return NextResponse.json({ error: "无权限" }, { status: 403 })
@@ -171,7 +171,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
-    const { error, user } = requireAuth(req)
+    const { error, user } = await requireAuth(req)
     if (error) return error
     if (!["TEACHER", "ADMIN"].includes(user!.role)) {
       return NextResponse.json({ error: "无权限" }, { status: 403 })

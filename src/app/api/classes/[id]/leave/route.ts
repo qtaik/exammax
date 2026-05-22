@@ -4,7 +4,7 @@ import { requireAuth } from "@/lib/auth"
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
-    const authResult = requireAuth(req)
+    const authResult = await requireAuth(req)
     if (authResult.error) return authResult.error
 
     const membership = await prisma.classMember.findUnique({

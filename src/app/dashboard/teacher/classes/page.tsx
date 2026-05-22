@@ -159,13 +159,11 @@ export default function TeacherClassesPage() {
     setInviteDialog(cls)
     try {
       const token = localStorage.getItem("token")
-      const res = await fetch("/api/admin/invitations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ count: 1, classId: cls.id }),
+      const res = await fetch(`/api/classes/${cls.id}/class-code`, {
+        headers: { Authorization: `Bearer ${token}` },
       })
       const data = await res.json()
-      setInviteCode(data.invitations?.[0]?.code || "")
+      setInviteCode(data.classCode?.code || "")
     } catch {}
   }
 

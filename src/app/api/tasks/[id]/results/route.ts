@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma"
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
-    const { error, user } = requireAuth(req)
+    const { error, user } = await requireAuth(req)
     if (error) return error
     if (!["TEACHER", "ADMIN"].includes(user!.role)) {
       return NextResponse.json({ error: "无权限" }, { status: 403 })

@@ -14,28 +14,28 @@ export async function POST(req: Request) {
     const body = await req.json()
     const { username, password, invitationCode } = registerSchema.parse(body)
 
-    // 验证邀请码
-    const invitation = await prisma.invitationCode.findUnique({
+    // 验证账户码
+    const accountCode = await prisma.accountCode.findUnique({
       where: { code: invitationCode },
     })
 
-    if (!invitation) {
+    if (!accountCode) {
       return NextResponse.json(
         { error: "邀请码不存在" },
         { status: 400 }
       )
     }
 
-    if (invitation.status !== "UNUSED") {
+    if (accountCode.status !== "ACTIVE") {
       return NextResponse.json(
-        { error: "邀请码已被使用" },
+        { error: "邀请码已失效" },
         { status: 400 }
       )
     }
 
-    if (invitation.expiresAt && invitation.expiresAt < new Date()) {
-      await prisma.invitationCode.update({
-        where: { id: invitation.id },
+    if (accountCode.expiresAt && accountCode.expiresAt < new Date()) {
+      await prisma.accountCode.update({
+        where: { id: accountCode.id },
         data: { status: "EXPIRED" },
       })
       return NextResponse.json(
@@ -56,23 +56,14 @@ export async function POST(req: Request) {
       )
     }
 
-    // 创建用户
+    // 创建用户，绑定账户码
     const passwordHash = await hash(password, 12)
     const user = await prisma.user.create({
       data: {
         username,
         passwordHash,
-        role: invitation.role,
-      },
-    })
-
-    // 标记邀请码为已使用
-    await prisma.invitationCode.update({
-      where: { id: invitation.id },
-      data: {
-        status: "USED",
-        usedById: user.id,
-        usedAt: new Date(),
+        role: accountCode.role,
+        accountCodeId: accountCode.id,
       },
     })
 

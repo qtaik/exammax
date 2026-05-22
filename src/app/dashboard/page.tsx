@@ -46,7 +46,7 @@ export default function DashboardPage() {
     { href: "/dashboard/shop", label: "积分商店", desc: "用积分兑换勋章和称号", icon: ShoppingBag, roles: ["STUDENT", "TEACHER", "ADMIN"] },
     { href: "/dashboard/profile", label: "个人主页", desc: "查看个人信息和装备", icon: User, roles: ["STUDENT", "TEACHER", "ADMIN"] },
     { href: "/dashboard/admin/questions", label: "题库管理", desc: "管理分类和题目", icon: HelpCircle, roles: ["ADMIN"] },
-    { href: "/dashboard/admin/invitations", label: "邀请码管理", desc: "生成和管理邀请码", icon: Settings, roles: ["ADMIN"] },
+    { href: "/dashboard/admin/account-codes", label: "账户码管理", desc: "生成和管理账户码", icon: Settings, roles: ["ADMIN"] },
     { href: "/dashboard/admin/users", label: "用户管理", desc: "管理平台用户", icon: Users, roles: ["ADMIN"] },
     { href: "/dashboard/admin/stats", label: "数据统计", desc: "查看平台运营数据", icon: BarChart3, roles: ["ADMIN"] },
   ].filter((card) => card.roles.includes(user.role))

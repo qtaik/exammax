@@ -4,37 +4,27 @@ import { requireAuth } from "@/lib/auth"
 
 export async function POST(req: Request) {
   try {
-    const authResult = requireAuth(req)
+    const authResult = await requireAuth(req)
     if (authResult.error) return authResult.error
 
     const { code } = await req.json()
     if (!code?.trim()) {
-      return NextResponse.json({ error: "请输入邀请码" }, { status: 400 })
+      return NextResponse.json({ error: "请输入班级码" }, { status: 400 })
     }
 
-    const invitation = await prisma.invitationCode.findUnique({
+    const classCode = await prisma.classCode.findUnique({
       where: { code: code.trim() },
     })
 
-    if (!invitation) {
-      return NextResponse.json({ error: "邀请码不存在" }, { status: 404 })
-    }
-    if (invitation.status !== "UNUSED") {
-      return NextResponse.json({ error: "邀请码已被使用" }, { status: 400 })
-    }
-    if (invitation.expiresAt && invitation.expiresAt < new Date()) {
-      return NextResponse.json({ error: "邀请码已过期" }, { status: 400 })
-    }
-
-    if (!invitation.classId) {
-      return NextResponse.json({ error: "此邀请码未关联班级" }, { status: 400 })
+    if (!classCode) {
+      return NextResponse.json({ error: "班级码不存在" }, { status: 404 })
     }
 
     // Check if already a member
     const existing = await prisma.classMember.findUnique({
       where: {
         classId_userId: {
-          classId: invitation.classId,
+          classId: classCode.classId,
           userId: authResult.user!.userId,
         },
       },
@@ -44,12 +34,11 @@ export async function POST(req: Request) {
     }
 
     const member = await prisma.classMember.create({
-      data: { classId: invitation.classId, userId: authResult.user!.userId },
+      data: { classId: classCode.classId, userId: authResult.user!.userId },
     })
 
-    // Get class name for response
     const cls = await prisma.class.findUnique({
-      where: { id: invitation.classId },
+      where: { id: classCode.classId },
       select: { name: true },
     })
 

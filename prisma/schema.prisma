@@ -26,9 +26,8 @@ enum TaskStatus {
   OVERDUE
 }
 
-enum InvitationStatus {
-  UNUSED
-  USED
+enum AccountCodeStatus {
+  ACTIVE
   EXPIRED
   REVOKED
 }
@@ -54,9 +53,11 @@ model User {
   streakDays    Int       @default(0)
   lastCheckIn   DateTime?
   activeTitleId String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  accountCodeId String?  @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
+  accountCode   AccountCode? @relation("BoundAccount", fields: [accountCodeId], references: [id])
   answerRecords AnswerRecord[]
   wrongQuestions WrongQuestion[]
   taskSubmissions TaskSubmission[]
@@ -66,8 +67,8 @@ model User {
   taughtTasks   Task[]    @relation("TaughtTasks")
   classMembers  ClassMember[] @relation("ClassMemberships")
   teachingClasses Class[] @relation("TeachingClasses")
-  usedInvitations InvitationCode[] @relation("UsedInvitation")
-  createdInvitations InvitationCode[] @relation("CreatedInvitations")
+  createdAccountCodes AccountCode[] @relation("CreatedAccountCodes")
+  createdClassCodes ClassCode[] @relation("CreatedClassCodes")
 }
 
 model Category {
@@ -89,7 +90,7 @@ model Class {
 
   teacher     User            @relation("TeachingClasses", fields: [teacherId], references: [id])
   members     ClassMember[]
-  invitations InvitationCode[]
+  classCodes  ClassCode[]
   tasks       Task[]
 
   @@index([teacherId])
@@ -252,23 +253,32 @@ model UserItem {
   @@unique([userId, itemId])
 }
 
-model InvitationCode {
-  id        String           @id @default(cuid())
-  code      String           @unique
-  status    InvitationStatus @default(UNUSED)
-  role      Role             @default(STUDENT)
-  expiresAt DateTime?
-  classId   String?
+model AccountCode {
+  id          String            @id @default(cuid())
+  code        String            @unique
+  status      AccountCodeStatus @default(ACTIVE)
+  role        Role              @default(STUDENT)
+  expiresAt   DateTime?
   createdById String?
-  usedById  String?
-  usedAt    DateTime?
-  createdAt DateTime         @default(now())
+  createdAt   DateTime          @default(now())
 
-  usedBy    User?            @relation("UsedInvitation", fields: [usedById], references: [id])
-  class     Class?           @relation(fields: [classId], references: [id])
-  createdBy User?            @relation("CreatedInvitations", fields: [createdById], references: [id])
+  boundUser   User?             @relation("BoundAccount")
+  createdBy   User?             @relation("CreatedAccountCodes", fields: [createdById], references: [id])
 
   @@index([status])
+  @@index([createdById])
+}
+
+model ClassCode {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  classId     String
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  class       Class    @relation(fields: [classId], references: [id])
+  createdBy   User?    @relation("CreatedClassCodes", fields: [createdById], references: [id])
+
   @@index([classId])
 }
 

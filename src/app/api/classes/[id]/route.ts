@@ -4,7 +4,7 @@ import { requireAuth } from "@/lib/auth"
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
-    const authResult = requireAuth(req)
+    const authResult = await requireAuth(req)
     if (authResult.error) return authResult.error
     if (!["TEACHER", "ADMIN"].includes(authResult.user!.role)) {
       return NextResponse.json({ error: "无权限" }, { status: 403 })
@@ -31,7 +31,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
-    const authResult = requireAuth(req)
+    const authResult = await requireAuth(req)
     if (authResult.error) return authResult.error
     if (!["TEACHER", "ADMIN"].includes(authResult.user!.role)) {
       return NextResponse.json({ error: "无权限" }, { status: 403 })
@@ -53,7 +53,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
 
     await prisma.$transaction([
       prisma.classMember.deleteMany({ where: { classId: params.id } }),
-      prisma.invitationCode.updateMany({ where: { classId: params.id }, data: { classId: null } }),
+      prisma.classCode.deleteMany({ where: { classId: params.id } }),
       prisma.class.delete({ where: { id: params.id } }),
     ])
 

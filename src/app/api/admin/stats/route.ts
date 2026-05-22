@@ -3,7 +3,7 @@ import { requireAuth, requireRole } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
 export async function GET(req: Request) {
-  const { error, user } = requireAuth(req)
+  const { error, user } = await requireAuth(req)
   if (error) return error
   const roleErr = requireRole(user!, ["ADMIN"])
   if (roleErr) return roleErr

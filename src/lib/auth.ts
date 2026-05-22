@@ -8,6 +8,7 @@ export interface AuthPayload {
   userId: string
   username: string
   role: string
+  accountCodeId?: string | null
 }
 
 export function verifyToken(token: string): AuthPayload {
@@ -32,7 +33,7 @@ export async function getAuthUser(req: Request) {
   }
 }
 
-export function requireAuth(req: Request) {
+export async function requireAuth(req: Request) {
   const authHeader = req.headers.get("authorization")
   if (!authHeader?.startsWith("Bearer ")) {
     return { error: NextResponse.json({ error: "未登录" }, { status: 401 }), user: null }
@@ -40,6 +41,18 @@ export function requireAuth(req: Request) {
   try {
     const token = authHeader.slice(7)
     const payload = verifyToken(token)
+
+    // 非 Admin 用户检查账户码状态（立即踢出已吊销/已过期的账户）
+    if (payload.role !== "ADMIN" && payload.accountCodeId) {
+      const code = await prisma.accountCode.findUnique({
+        where: { id: payload.accountCodeId },
+        select: { status: true },
+      })
+      if (!code || code.status === "EXPIRED" || code.status === "REVOKED") {
+        return { error: NextResponse.json({ error: "账户已失效，请联系管理员" }, { status: 401 }), user: null }
+      }
+    }
+
     return { error: null, user: payload }
   } catch {
     return { error: NextResponse.json({ error: "认证失败" }, { status: 401 }), user: null }

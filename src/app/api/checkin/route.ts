@@ -24,7 +24,7 @@ function isBeforeYesterday(date: Date, now: Date): boolean {
 }
 
 export async function GET(req: Request) {
-  const { error, user } = requireAuth(req)
+  const { error, user } = await requireAuth(req)
   if (error) return error
 
   try {
@@ -51,7 +51,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const { error, user } = requireAuth(req)
+  const { error, user } = await requireAuth(req)
   if (error) return error
 
   try {

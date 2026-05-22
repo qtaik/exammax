@@ -31,7 +31,7 @@ const adminItems = [
   { href: "/dashboard/teacher/questions", label: "题库管理", icon: HelpCircle, roles: ["TEACHER", "ADMIN"] },
   { href: "/dashboard/admin/users", label: "用户管理", icon: Users, roles: ["ADMIN"] },
   { href: "/dashboard/admin/questions", label: "题库管理", icon: HelpCircle, roles: ["ADMIN"] },
-  { href: "/dashboard/admin/invitations", label: "邀请码管理", icon: Settings, roles: ["ADMIN"] },
+  { href: "/dashboard/admin/account-codes", label: "账户码管理", icon: Settings, roles: ["ADMIN"] },
   { href: "/dashboard/admin/stats", label: "数据统计", icon: BarChart3, roles: ["ADMIN"] },
   { href: "/dashboard/admin/settings", label: "系统设置", icon: Settings, roles: ["ADMIN"] },
 ]

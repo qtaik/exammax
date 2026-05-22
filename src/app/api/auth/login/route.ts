@@ -54,10 +54,37 @@ export async function POST(req: Request) {
       )
     }
 
+    // 非 Admin 用户检查账户码状态
+    if (user.role !== "ADMIN" && user.accountCodeId) {
+      const accountCode = await prisma.accountCode.findUnique({
+        where: { id: user.accountCodeId },
+        select: { status: true, expiresAt: true },
+      })
+      if (!accountCode || accountCode.status === "EXPIRED" || accountCode.status === "REVOKED") {
+        return NextResponse.json(
+          { error: "账户已失效，请联系管理员" },
+          { status: 401 }
+        )
+      }
+    }
+
     // 登录成功，清除失败记录
     const attemptsKey = `login:attempts:${username}`
     await redis.del(attemptsKey)
     await redis.del(lockKey)
+
+    // 获取账户码过期时间用于 JWT
+    let tokenExpiresIn: number = 7 * 24 * 60 * 60 // 7 天（秒）
+    if (user.role !== "ADMIN" && user.accountCodeId) {
+      const accountCode = await prisma.accountCode.findUnique({
+        where: { id: user.accountCodeId },
+        select: { expiresAt: true },
+      })
+      if (accountCode?.expiresAt) {
+        const remaining = Math.floor((accountCode.expiresAt.getTime() - Date.now()) / 1000)
+        tokenExpiresIn = Math.max(60, remaining)
+      }
+    }
 
     // 生成 JWT
     const token = jwt.sign(
@@ -65,9 +92,10 @@ export async function POST(req: Request) {
         userId: user.id,
         username: user.username,
         role: user.role,
+        accountCodeId: user.accountCodeId,
       },
       JWT_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: tokenExpiresIn }
     )
 
     return NextResponse.json(

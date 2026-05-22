@@ -4,7 +4,7 @@ import { requireAuth } from "@/lib/auth"
 
 export async function GET(req: Request) {
   try {
-    const authResult = requireAuth(req)
+    const authResult = await requireAuth(req)
     if (authResult.error) return authResult.error
 
     const user = authResult.user!
@@ -48,7 +48,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const authResult = requireAuth(req)
+    const authResult = await requireAuth(req)
     if (authResult.error) return authResult.error
     if (!["TEACHER", "ADMIN"].includes(authResult.user!.role)) {
       return NextResponse.json({ error: "无权限" }, { status: 403 })

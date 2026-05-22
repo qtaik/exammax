@@ -34,7 +34,7 @@ function mapQuestionType(type: string): "CHOICE" | "FILL" | "JUDGE" {
 }
 
 export async function POST(req: Request) {
-  const { error, user } = requireAuth(req)
+  const { error, user } = await requireAuth(req)
   if (error) return error
   const roleErr = requireRole(user!, ["ADMIN", "TEACHER"])
   if (roleErr) return roleErr

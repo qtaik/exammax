@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { parseDatetimeInTimezone } from "@/lib/date-utils"
 
 export async function GET(req: Request) {
-  const { error, user } = requireAuth(req)
+  const { error, user } = await requireAuth(req)
   if (error) return error
 
   try {
@@ -89,7 +89,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const { error, user } = requireAuth(req)
+    const { error, user } = await requireAuth(req)
     if (error) return error
     if (!["TEACHER", "ADMIN"].includes(user!.role)) {
       return NextResponse.json({ error: "无权限" }, { status: 403 })

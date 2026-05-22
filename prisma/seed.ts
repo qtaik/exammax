@@ -4,26 +4,15 @@ import crypto from 'crypto'
 
 const prisma = new PrismaClient()
 
-function generateInvitationCode(): string {
+function generateCode(prefix: string): string {
   const randomBytes = crypto.randomBytes(32).toString('hex')
-  return `exam_${randomBytes}`
+  return `${prefix}${randomBytes}`
 }
 
 async function main() {
   console.log('开始初始化数据...')
 
-  // 创建管理员邀请码
-  const adminInvitationCode = generateInvitationCode()
-  const adminInvitation = await prisma.invitationCode.create({
-    data: {
-      code: adminInvitationCode,
-      role: 'ADMIN',
-      expiresAt: new Date('2026-12-31'),
-    },
-  })
-  console.log('管理员邀请码创建成功:', adminInvitationCode)
-
-  // 创建管理员账户
+  // 创建管理员账户（不绑定账户码，永不过期）
   const adminPassword = await hash('admin123', 12)
   const admin = await prisma.user.upsert({
     where: { username: 'admin' },
@@ -34,30 +23,20 @@ async function main() {
       role: 'ADMIN',
     },
   })
+  console.log('管理员账户创建成功: admin (admin123)')
 
-  // 绑定管理员邀请码
-  await prisma.invitationCode.update({
-    where: { id: adminInvitation.id },
+  // 创建教师账户码
+  const teacherCode = generateCode('exam_')
+  const teacherAccountCode = await prisma.accountCode.create({
     data: {
-      status: 'USED',
-      usedById: admin.id,
-      usedAt: new Date(),
-    },
-  })
-  console.log('管理员账户创建成功: admin')
-
-  // 创建教师邀请码
-  const teacherInvitationCode = generateInvitationCode()
-  const teacherInvitation = await prisma.invitationCode.create({
-    data: {
-      code: teacherInvitationCode,
+      code: teacherCode,
       role: 'TEACHER',
       expiresAt: new Date('2026-12-31'),
     },
   })
-  console.log('教师邀请码创建成功:', teacherInvitationCode)
+  console.log('教师账户码创建成功:', teacherCode)
 
-  // 创建测试教师账户
+  // 创建测试教师账户（绑定账户码）
   const teacherPassword = await hash('teacher123', 12)
   const teacher = await prisma.user.upsert({
     where: { username: 'teacher' },
@@ -66,25 +45,16 @@ async function main() {
       username: 'teacher',
       passwordHash: teacherPassword,
       role: 'TEACHER',
+      accountCodeId: teacherAccountCode.id,
     },
   })
+  console.log('教师账户创建成功: teacher (teacher123)')
 
-  // 绑定教师邀请码
-  await prisma.invitationCode.update({
-    where: { id: teacherInvitation.id },
-    data: {
-      status: 'USED',
-      usedById: teacher.id,
-      usedAt: new Date(),
-    },
-  })
-  console.log('教师账户创建成功: teacher')
-
-  // 创建学生邀请码
+  // 创建学生账户码（未绑定）
   const studentCodes = []
   for (let i = 0; i < 5; i++) {
-    const code = generateInvitationCode()
-    await prisma.invitationCode.create({
+    const code = generateCode('exam_')
+    await prisma.accountCode.create({
       data: {
         code,
         role: 'STUDENT',
@@ -93,7 +63,7 @@ async function main() {
     })
     studentCodes.push(code)
   }
-  console.log('学生邀请码创建成功:', studentCodes.length, '个')
+  console.log('学生账户码创建成功:', studentCodes.length, '个')
 
   // 创建默认分类
   await prisma.category.upsert({
@@ -137,12 +107,12 @@ async function main() {
   console.log('数据初始化完成！')
   console.log('')
   console.log('默认账户信息:')
-  console.log('管理员: admin / admin123')
+  console.log('管理员: admin / admin123 (不绑码，永不过期)')
   console.log('教师: teacher / teacher123')
   console.log('')
-  console.log('管理员邀请码:', adminInvitationCode)
-  console.log('教师邀请码:', teacherInvitationCode)
-  console.log('学生邀请码:', studentCodes.join('\n'))
+  console.log('教师账户码:', teacherCode)
+  console.log('学生账户码:')
+  studentCodes.forEach(c => console.log(' ', c))
 }
 
 main()

@@ -27,29 +27,29 @@ import {
   Plus,
   Ban,
   Copy,
+  Clock,
+  Undo2,
 } from "lucide-react"
 
-interface InvitationItem {
+interface AccountCodeItem {
   id: string
   code: string
   status: string
   role: string
   expiresAt: string | null
-  usedBy: { username: string } | null
-  usedAt: string | null
+  boundUser: { id: string; username: string } | null
+  createdBy: { id: string; username: string } | null
   createdAt: string
 }
 
 const statusLabels: Record<string, string> = {
-  UNUSED: "未使用",
-  USED: "已使用",
+  ACTIVE: "有效",
   EXPIRED: "已过期",
-  REVOKED: "已撤销",
+  REVOKED: "已吊销",
 }
 
 const statusBadgeVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  UNUSED: "default",
-  USED: "secondary",
+  ACTIVE: "default",
   EXPIRED: "outline",
   REVOKED: "destructive",
 }
@@ -60,8 +60,8 @@ const roleLabels: Record<string, string> = {
   STUDENT: "学生",
 }
 
-export default function AdminInvitationsPage() {
-  const [invitations, setInvitations] = useState<InvitationItem[]>([])
+export default function AdminAccountCodesPage() {
+  const [codes, setCodes] = useState<AccountCodeItem[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -75,32 +75,36 @@ export default function AdminInvitationsPage() {
   const [genExpiry, setGenExpiry] = useState("")
   const [generatedCodes, setGeneratedCodes] = useState<string[]>([])
 
+  // Extend dialog
+  const [extendOpen, setExtendOpen] = useState<AccountCodeItem | null>(null)
+  const [extendExpiry, setExtendExpiry] = useState("")
+
   const getToken = () => localStorage.getItem("token")
 
-  const fetchInvitations = useCallback(async () => {
+  const fetchCodes = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams({ page: String(page), limit: "20" })
       if (statusFilter && statusFilter !== "all") params.set("status", statusFilter)
 
-      const res = await fetch(`/api/admin/invitations?${params}`, {
+      const res = await fetch(`/api/admin/account-codes?${params}`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       })
       if (!res.ok) throw new Error()
       const data = await res.json()
-      setInvitations(data.invitations)
+      setCodes(data.codes)
       setTotal(data.total)
       setTotalPages(data.totalPages)
     } catch {
-      console.error("获取邀请码列表失败")
+      console.error("获取账户码列表失败")
     } finally {
       setLoading(false)
     }
   }, [page, statusFilter])
 
   useEffect(() => {
-    fetchInvitations()
-  }, [fetchInvitations])
+    fetchCodes()
+  }, [fetchCodes])
 
   const handleGenerate = async () => {
     const count = parseInt(genCount)
@@ -110,7 +114,7 @@ export default function AdminInvitationsPage() {
     }
 
     try {
-      const res = await fetch("/api/admin/invitations", {
+      const res = await fetch("/api/admin/account-codes", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -128,32 +132,77 @@ export default function AdminInvitationsPage() {
         return
       }
       const data = await res.json()
-      setGeneratedCodes(data.codes)
-      fetchInvitations()
+      setGeneratedCodes(data.codes.map((c: AccountCodeItem) => c.code))
+      fetchCodes()
     } catch {
       alert("生成失败")
     }
   }
 
   const handleRevoke = async (id: string) => {
-    if (!confirm("确定要撤销此邀请码吗？")) return
+    if (!confirm("确定要吊销此账户码吗？绑定用户将无法登录")) return
     try {
-      const res = await fetch("/api/admin/invitations", {
+      const res = await fetch(`/api/admin/account-codes/${id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${getToken()}`,
         },
-        body: JSON.stringify({ id, status: "REVOKED" }),
+        body: JSON.stringify({ action: "revoke" }),
       })
       if (!res.ok) {
         const data = await res.json()
-        alert(data.error || "撤销失败")
+        alert(data.error || "操作失败")
         return
       }
-      fetchInvitations()
+      fetchCodes()
     } catch {
-      alert("撤销失败")
+      alert("操作失败")
+    }
+  }
+
+  const handleReinstate = async (id: string) => {
+    if (!confirm("确定要恢复此账户码吗？")) return
+    try {
+      const res = await fetch(`/api/admin/account-codes/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({ action: "reinstate" }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(data.error || "操作失败")
+        return
+      }
+      fetchCodes()
+    } catch {
+      alert("操作失败")
+    }
+  }
+
+  const handleExtend = async () => {
+    if (!extendOpen || !extendExpiry) return
+    try {
+      const res = await fetch(`/api/admin/account-codes/${extendOpen.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({ action: "extend", expiresAt: extendExpiry }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(data.error || "延期失败")
+        return
+      }
+      setExtendOpen(null)
+      fetchCodes()
+    } catch {
+      alert("延期失败")
     }
   }
 
@@ -164,7 +213,7 @@ export default function AdminInvitationsPage() {
 
   const copyAllCodes = () => {
     navigator.clipboard.writeText(generatedCodes.join("\n"))
-    alert("已复制全部邀请码到剪贴板")
+    alert("已复制全部账户码到剪贴板")
   }
 
   const truncateCode = (code: string) => {
@@ -182,12 +231,12 @@ export default function AdminInvitationsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Settings className="h-6 w-6" /> 邀请码管理
+            <Settings className="h-6 w-6" /> 账户码管理
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">共 {total} 个邀请码</p>
+          <p className="text-sm text-muted-foreground mt-1">共 {total} 个账户码</p>
         </div>
         <Button onClick={() => { setGenerateOpen(true); setGeneratedCodes([]) }}>
-          <Plus className="h-4 w-4 mr-2" /> 生成邀请码
+          <Plus className="h-4 w-4 mr-2" /> 生成账户码
         </Button>
       </div>
 
@@ -200,10 +249,9 @@ export default function AdminInvitationsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">全部状态</SelectItem>
-                <SelectItem value="UNUSED">未使用</SelectItem>
-                <SelectItem value="USED">已使用</SelectItem>
+                <SelectItem value="ACTIVE">有效</SelectItem>
                 <SelectItem value="EXPIRED">已过期</SelectItem>
-                <SelectItem value="REVOKED">已撤销</SelectItem>
+                <SelectItem value="REVOKED">已吊销</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -211,60 +259,85 @@ export default function AdminInvitationsPage() {
         <CardContent>
           {loading ? (
             <p className="text-center text-muted-foreground py-8">加载中...</p>
-          ) : invitations.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">暂无邀请码</p>
+          ) : codes.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">暂无账户码</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-2 font-medium">邀请码</th>
+                    <th className="text-left py-3 px-2 font-medium">账户码</th>
                     <th className="text-left py-3 px-2 font-medium">状态</th>
                     <th className="text-left py-3 px-2 font-medium">角色</th>
-                    <th className="text-left py-3 px-2 font-medium">使用者</th>
+                    <th className="text-left py-3 px-2 font-medium">绑定用户</th>
                     <th className="text-left py-3 px-2 font-medium">过期时间</th>
                     <th className="text-left py-3 px-2 font-medium">创建时间</th>
                     <th className="text-left py-3 px-2 font-medium">操作</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {invitations.map((inv) => (
-                    <tr key={inv.id} className="border-b hover:bg-muted/50">
+                  {codes.map((code) => (
+                    <tr key={code.id} className="border-b hover:bg-muted/50">
                       <td className="py-3 px-2">
                         <div className="flex items-center gap-2">
                           <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                            {truncateCode(inv.code)}
+                            {truncateCode(code.code)}
                           </code>
                           <Button
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0"
-                            onClick={() => copyCode(inv.code)}
+                            onClick={() => copyCode(code.code)}
                           >
                             <Copy className="h-3 w-3" />
                           </Button>
                         </div>
                       </td>
                       <td className="py-3 px-2">
-                        <Badge variant={statusBadgeVariant[inv.status] || "default"}>
-                          {statusLabels[inv.status] || inv.status}
+                        <Badge variant={statusBadgeVariant[code.status] || "default"}>
+                          {statusLabels[code.status] || code.status}
                         </Badge>
                       </td>
-                      <td className="py-3 px-2">{roleLabels[inv.role] || inv.role}</td>
-                      <td className="py-3 px-2">{inv.usedBy?.username || "-"}</td>
-                      <td className="py-3 px-2">{formatDate(inv.expiresAt)}</td>
-                      <td className="py-3 px-2">{formatDate(inv.createdAt)}</td>
+                      <td className="py-3 px-2">{roleLabels[code.role] || code.role}</td>
+                      <td className="py-3 px-2">{code.boundUser?.username || "-"}</td>
+                      <td className="py-3 px-2">{formatDate(code.expiresAt)}</td>
+                      <td className="py-3 px-2">{formatDate(code.createdAt)}</td>
                       <td className="py-3 px-2">
-                        {inv.status === "UNUSED" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRevoke(inv.id)}
-                          >
-                            <Ban className="h-4 w-4 text-destructive mr-1" />
-                            撤销
-                          </Button>
-                        )}
+                        <div className="flex gap-1">
+                          {(code.status === "ACTIVE" || code.status === "EXPIRED") && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setExtendOpen(code)
+                                setExtendExpiry(code.expiresAt ? new Date(code.expiresAt).toISOString().slice(0, 16) : "")
+                              }}
+                            >
+                              <Clock className="h-4 w-4 mr-1" />
+                              延期
+                            </Button>
+                          )}
+                          {code.status === "ACTIVE" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRevoke(code.id)}
+                            >
+                              <Ban className="h-4 w-4 text-destructive mr-1" />
+                              吊销
+                            </Button>
+                          )}
+                          {code.status === "REVOKED" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleReinstate(code.id)}
+                            >
+                              <Undo2 className="h-4 w-4 mr-1" />
+                              恢复
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -305,12 +378,12 @@ export default function AdminInvitationsPage() {
       <Dialog open={generateOpen} onOpenChange={setGenerateOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>生成邀请码</DialogTitle>
+            <DialogTitle>生成账户码</DialogTitle>
           </DialogHeader>
           {generatedCodes.length > 0 ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                已生成 {generatedCodes.length} 个邀请码:
+                已生成 {generatedCodes.length} 个账户码:
               </p>
               <div className="max-h-[300px] overflow-y-auto space-y-1 bg-muted p-3 rounded-md">
                 {generatedCodes.map((code, idx) => (
@@ -357,7 +430,6 @@ export default function AdminInvitationsPage() {
                   <SelectContent>
                     <SelectItem value="STUDENT">学生</SelectItem>
                     <SelectItem value="TEACHER">教师</SelectItem>
-                    <SelectItem value="ADMIN">管理员</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -377,6 +449,36 @@ export default function AdminInvitationsPage() {
               </DialogFooter>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Extend Dialog */}
+      <Dialog open={!!extendOpen} onOpenChange={() => setExtendOpen(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>延期账户码</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              当前绑定用户：{extendOpen?.boundUser?.username || "无"}
+            </p>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">新过期时间</label>
+              <Input
+                type="datetime-local"
+                value={extendExpiry}
+                onChange={(e) => setExtendExpiry(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExtendOpen(null)}>
+              取消
+            </Button>
+            <Button onClick={handleExtend} disabled={!extendExpiry}>
+              确认延期
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
