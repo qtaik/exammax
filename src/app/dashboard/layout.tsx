@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { BookOpen, Trophy, ShoppingBag, ClipboardList, BarChart3, Users, HelpCircle, Settings, LogOut, Home, CalendarCheck, Award, User } from "lucide-react"
+import { BookOpen, Trophy, ShoppingBag, RotateCcw, BarChart3, Users, HelpCircle, Settings, LogOut, Home, CalendarCheck, Award, User } from "lucide-react"
 
 interface User {
   id: string
@@ -15,7 +15,7 @@ interface User {
 const navItems = [
   { href: "/dashboard", label: "首页", icon: Home, roles: ["STUDENT", "TEACHER", "ADMIN"] },
   { href: "/dashboard/practice", label: "开始刷题", icon: BookOpen, roles: ["STUDENT", "TEACHER", "ADMIN"] },
-  { href: "/dashboard/history", label: "答题历史", icon: ClipboardList, roles: ["STUDENT", "TEACHER", "ADMIN"] },
+  { href: "/dashboard/history", label: "错题回顾", icon: RotateCcw, roles: ["STUDENT", "TEACHER", "ADMIN"] },
   { href: "/dashboard/checkin", label: "签到打卡", icon: CalendarCheck, roles: ["STUDENT", "TEACHER", "ADMIN"] },
   { href: "/dashboard/leaderboard", label: "排行榜", icon: Trophy, roles: ["STUDENT", "TEACHER", "ADMIN"] },
   { href: "/dashboard/achievements", label: "成就勋章", icon: Award, roles: ["STUDENT", "TEACHER", "ADMIN"] },
@@ -28,6 +28,7 @@ const adminItems = [
   { href: "/dashboard/admin/questions", label: "题库管理", icon: HelpCircle, roles: ["ADMIN"] },
   { href: "/dashboard/admin/invitations", label: "邀请码管理", icon: Settings, roles: ["ADMIN"] },
   { href: "/dashboard/admin/stats", label: "数据统计", icon: BarChart3, roles: ["ADMIN"] },
+  { href: "/dashboard/admin/settings", label: "系统设置", icon: Settings, roles: ["ADMIN"] },
 ]
 
 const roleLabels: Record<string, string> = {

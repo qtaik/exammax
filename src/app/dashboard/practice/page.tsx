@@ -375,6 +375,12 @@ export default function PracticePage() {
         total: prev.total + 1,
         correct: prev.correct + (data.correct ? 1 : 0),
       }))
+      // Fire-and-forget 更新错题本
+      fetch("/api/wrong-questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ questionId: question.id, correct: data.correct, userAnswer: answer }),
+      }).catch(() => {})
       // 逐题闯关：答完即存档
       if (mode === "onebyone" && progressCatRef.current) {
         const prevProgress = loadProgress(progressCatRef.current)

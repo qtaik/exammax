@@ -38,6 +38,11 @@ enum ShopItemType {
   TITLE
 }
 
+enum WrongQuestionStatus {
+  ACTIVE
+  COMPLETED
+}
+
 model User {
   id            String    @id @default(cuid())
   username      String    @unique
@@ -53,6 +58,7 @@ model User {
   updatedAt     DateTime  @updatedAt
 
   answerRecords AnswerRecord[]
+  wrongQuestions WrongQuestion[]
   taskSubmissions TaskSubmission[]
   badges        UserBadge[]
   items         UserItem[]
@@ -87,6 +93,7 @@ model Question {
 
   category     Category     @relation(fields: [categoryId], references: [id])
   answerRecords AnswerRecord[]
+  wrongQuestions WrongQuestion[]
 
   @@index([categoryId])
   @@index([type])
@@ -107,6 +114,23 @@ model AnswerRecord {
   @@index([userId])
   @@index([questionId])
   @@index([createdAt])
+}
+
+model WrongQuestion {
+  id              String               @id @default(cuid())
+  userId          String
+  questionId      String
+  errorCount      Int                  @default(1)
+  status          WrongQuestionStatus  @default(ACTIVE)
+  wrongAnswers    Json                 @default("[]")
+  lastAnsweredAt  DateTime             @updatedAt
+  completedAt     DateTime?
+
+  user            User                 @relation(fields: [userId], references: [id])
+  question        Question             @relation(fields: [questionId], references: [id])
+
+  @@unique([userId, questionId])
+  @@index([userId, status])
 }
 
 model Task {
@@ -215,4 +239,13 @@ model PointLog {
 
   @@index([userId])
   @@index([createdAt])
+}
+
+model Setting {
+  id          String  @id @default(cuid())
+  key         String  @unique
+  value       String
+  type        String  @default("number")
+  label       String?
+  description String?
 }
