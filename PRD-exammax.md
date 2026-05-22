@@ -6,7 +6,9 @@
 
 ## 1. Summary
 
-ExamMax 是一个轻量级的选择题刷题框架系统，核心目标是通过 xlsx 导入选择题，提供随机抽题、按个答题、考试三种刷题模式，帮助用户加强对题目的熟练度。平台采用分类管理（独立分类，无学科概念），支持完整的用户管理、积分/徽章/排行榜/打卡等奖励机制、错题回顾与管理（权重机制 + 错题榜）、虚拟商店兑换功能。通过邀请码准入机制控制用户注册，管理员可通过后台管理题库、用户、系统设置和数据统计。技术栈采用 Next.js 全栈方案（TypeScript + Tailwind CSS + Prisma + MySQL），通过 Docker Compose 打包实现一键部署。
+ExamMax 是一个轻量级的选择题刷题框架系统，核心目标是通过 xlsx 导入选择题，提供随机抽题、按个答题、考试三种刷题模式，帮助用户加强对题目的熟练度。平台采用分类管理（独立分类，无学科概念），支持完整的用户管理、积分/徽章/排行榜/打卡等奖励机制、错题回顾与管理（权重机制 + 错题榜）、虚拟商店兑换功能。通过邀请码准入机制控制用户注册，管理员可通过后台管理题库、用户、系统设置和数据统计。
+
+V1.6 新增**师生交互考试体系**：教师可创建班级、发布指定题目的限时考试（配置切屏限制、每题时限、题目顺序），学生在全屏防作弊环境下逐题作答（每题独立倒计时、切屏检测自动交卷），教师可查看学生成绩统计与切屏日志。技术栈采用 Next.js 全栈方案（TypeScript + Tailwind CSS + Prisma + MySQL），通过 Docker Compose 打包实现一键部署。
 
 ---
 
@@ -26,16 +28,20 @@ ExamMax 是一个轻量级的选择题刷题框架系统，核心目标是通过
 - 现有平台功能过于复杂，缺少简单直接的刷题框架
 - 通过奖励机制（积分、徽章、排行榜）提升刷题动力
 - **错题回顾需求：** 用户需要系统化的错题管理功能，而非简单的答题历史列表。通过权重机制追踪错题掌握程度，配合错题榜激励用户攻克薄弱环节
+- **师生交互考试需求（V1.6）：** 现有的模拟考试模式是学生自选分类/题数/时间自测，缺少教师主导的正式考试场景。教师需要能指定题目、设置截止时间、指派班级、监控学生作答行为（防作弊），学生需要全屏逐题作答并自动收卷，形成完整的"教师发布→学生作答→教师阅卷"闭环
 
 ### 核心理念
 - **核心功能**：选择题刷题框架（xlsx 导入 + 三种刷题模式）
 - **附加功能**：用户管理、奖励机制（积分/徽章/排行榜/签到/商店）、错题回顾与管理
+- **师生交互（V1.6）**：班级管理、教师发布考试、学生防作弊作答、教师成绩统计
 
 ### 约束与假设
 - **约束：** 个人开发，需要快速上线
 - **约束：** 初期仅支持选择题（单选/多选），后续可扩展
 - **约束：** 错题回顾模块与练习模块解耦，练习模块零改动
+- **约束（V1.6）：** 防作弊全屏机制依赖浏览器 Fullscreen API，无法防止物理作弊（如使用第二台设备）
 - **假设：** 用户通过 xlsx 文件批量导入题目
+- **假设（V1.6）：** 教师已有题库基础，可直接从题库选题发布考试
 
 ---
 
@@ -46,6 +52,7 @@ ExamMax 是一个轻量级的选择题刷题框架系统，核心目标是通过
 2. **建立错题回顾体系**：通过权重机制追踪错题，提供错题重做、错题榜和分类筛选，替代传统答题历史
 3. **建立奖励机制**：积分、徽章、排行榜、签到、商店等附加功能
 4. **一键部署**：通过 Docker Compose 实现简单部署
+5. **建立师生交互考试体系（V1.6）**：班级管理、教师发布指定题目的正式考试、学生全屏防作弊逐题作答、教师查看成绩统计
 
 ### 明确不做（Non-Goals）
 - 不做学科概念（分类独立，不关联学科）
@@ -54,6 +61,7 @@ ExamMax 是一个轻量级的选择题刷题框架系统，核心目标是通过
 - 不做移动端原生 App（仅 Web 端）
 - 不做支付/商业化功能
 - 不修改练习模块以适配错题记录（fire-and-forget 解耦）
+- 不修改自测"模拟考试"模式（教师考试与模拟考试并行，互不干扰）
 
 ---
 
@@ -61,7 +69,8 @@ ExamMax 是一个轻量级的选择题刷题框架系统，核心目标是通过
 
 | Segment | 描述 | 优先级 |
 |---------|------|--------|
-| **刷题用户** | 需要通过刷题加强题目熟练度的用户 | P0 |
+| **刷题用户（学生）** | 需要通过刷题加强题目熟练度的用户 | P0 |
+| **教师** | 发布考试、管理班级、查看学生成绩的教学者（V1.6） | P0 |
 | **管理员** | 平台运营者，管理题库和用户 | P0 |
 
 ---
@@ -73,6 +82,10 @@ ExamMax 是一个轻量级的选择题刷题框架系统，核心目标是通过
 | **刷题用户** | 通过多种模式刷题，加强题目熟练度 | 消除"没有好的刷题工具"的困扰 | 积分/徽章/排行榜带来的成就感 |
 | **刷题用户** | 系统化管理错题，针对性攻克薄弱环节 | 消除"不知道哪些题需要重点复习"的焦虑 | 错题权重追踪 + 错题榜排名带来的攻克动力 |
 | **刷题用户** | 重做错题直到掌握 | 消除"错题反复错"的挫败感 | 权重机制（对-1/错+1）让进步可视化 |
+| **教师（V1.6）** | 创建班级、邀请学生，发布指定题目的限时考试 | 消除"无法组织正式考试"的痛点 | 班级管理 + 考试发布一站完成 |
+| **教师（V1.6）** | 查看学生成绩统计、切屏日志、答题分析 | 消除"无法了解学生薄弱环节"的盲区 | 全班正确率统计 + 逐人答题详情 |
+| **学生（V1.6）** | 加入班级、参加教师发布的正式考试 | 消除"只有自测缺少正式考试"的缺憾 | 完整考试流程 + 防作弊计时 |
+| **学生（V1.6）** | 查看考试成绩和正确答案解析 | 消除"不知道自己错在哪"的困惑 | 交卷即出分 + 逐题展示正确/错误/解析 |
 | **管理员** | 管理题库和用户 | 消除手动管理的繁琐 | xlsx 批量导入、数据统计 |
 | **管理员** | 配置系统参数（如答题记录保留天数） | 消除硬编码配置的运维负担 | 可视化系统设置页面 |
 
@@ -89,7 +102,13 @@ ExamMax
 │   ├── 分类管理（独立分类）
 │   ├── 随机抽题模式
 │   ├── 按个答题模式
-│   └── 考试模式
+│   └── 模拟考试模式（自选分类/题数/时间）
+├── 师生交互考试系统（V1.6 新增）
+│   ├── 班级管理（教师创建/编辑/删除班级，邀请码加入）
+│   ├── 考试管理（教师指定题目→设置顺序→配置时限→指派班级→发布）
+│   ├── 防作弊作答（全屏 + 每题独立倒计时 + 切屏检测自动交卷）
+│   ├── 学生考试列表（待考/已考/已逾期三状态）
+│   └── 成绩统计（逐人答题详情 + 全班正确率 + 切屏日志）
 ├── 错题回顾系统（V1.5 新增）
 │   ├── 错题列表（待攻克 / 已攻克双 Tab）
 │   ├── 错题榜 Top 20（按 errorCount 降序）
@@ -106,7 +125,7 @@ ExamMax
 │   └── 虚拟商店
 ├── 用户管理
 │   ├── 邀请码注册
-│   ├── 用户角色（学生/管理员）
+│   ├── 用户角色（学生/教师/管理员）
 │   └── 个人主页
 └── 管理后台
     ├── 题库管理（CRUD + xlsx 导入）
@@ -281,6 +300,256 @@ ExamMax
 | key | type | 默认值 | label | description |
 |-----|------|--------|-------|-------------|
 | answer_retention_days | NUMBER | 90 | 答题记录保留天数 | 超过此天数的 AnswerRecord 在 self-heal 时被清理 |
+
+### 师生交互考试模块（V1.6）
+
+#### 与模拟考试的区别
+
+现有"模拟考试"是学生自选分类/题数/时间自测；V1.6 考试模块是**教师主导**的正式考试：
+- 教师指定具体题目，而非学生自选范围
+- 教师设置截止时间，而非学生自选时长
+- 教师指派班级，所有成员均可参加
+- 防作弊机制（全屏 + 每题倒计时 + 切屏检测）
+- 教师查看全班统计和逐人答题详情
+
+#### 数据模型变更
+
+**新增 Class 模型：**
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | String (CUID) | 主键 |
+| name | String | 班级名称 |
+| description | String? | 班级描述 |
+| teacherId | String | 创建教师 ID (FK User) |
+| createdAt | DateTime | 创建时间 |
+
+**新增 ClassMember 模型：**
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | String (CUID) | 主键 |
+| classId | String | 班级 ID (FK Class) |
+| userId | String | 学生 ID (FK User) |
+| joinedAt | DateTime | 加入时间 |
+
+**索引：** `@@unique([classId, userId])`
+
+**修改 Task 模型（新增字段）：**
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| classId | String? | 指派班级 ID（替代多对多 assignedTo） |
+| questionOrder | String | "manual"（手动顺序）\| "shuffle"（随机打乱） |
+| perQuestionTime | Int? | 每题时限秒数（null=不限） |
+| maxTabSwitches | Int | 最大切屏次数，默认 3 |
+
+**修改 TaskSubmission 模型（新增字段）：**
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| tabSwitches | Int | 实际切屏次数，默认 0 |
+| switchLog | Json | 切屏记录 `[{time, duration}]`，默认 `[]` |
+| perQuestionTime | Json? | 每题实际用时 `{qId: seconds}` |
+| submittedAt | DateTime? | 实际交卷时间 |
+
+**修改 InvitationCode 模型（新增字段）：**
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| classId | String? | 关联班级（班级专属邀请码） |
+| createdById | String? | 创建者 ID（哪个教师生成的） |
+
+#### 防作弊机制
+
+```
+学生进入考试
+  │
+  ├──► 强制全屏（调用 Fullscreen API）
+  │     └── 拒绝 → 不允许开始考试
+  │
+  ├──► 每题独立计时器（切题暂停/恢复）
+  │     ├── 前端 setInterval + 内存管理
+  │     └── localStorage 快照防丢（刷新恢复计时状态）
+  │
+  ├──► 切屏检测
+  │     ├── visibilitychange 事件（切换标签页/最小化）
+  │     ├── blur 事件（窗口失焦）
+  │     └── 切屏计数 >= maxTabSwitches → 自动交卷
+  │
+  ├──► 时限到 → 自动锁定当前题（不可再修改答案）
+  │
+  ├──► 截止时间到 → 自动交卷
+  │
+  └──► 答题记录同步写入 AnswerRecord
+        └── 错题自动进入 WrongQuestion（fire-and-forget）
+```
+
+**计时器实现要点：**
+- 每道题有独立 `perQuestionTime`（若配置），切到下一题时暂停当前计时器、恢复/启动新题计时器
+- 每题剩余时间通过 `localStorage` 快照保存（key: `exam_{taskId}_q_{questionId}_remaining`），防止刷新丢失
+- 交卷时清除所有 localStorage 快照
+- 前端组件卸载时（`cleanup`）暂停所有计时器
+
+**切屏检测实现要点：**
+- `document.addEventListener("visibilitychange", ...)` — 检测标签页切换
+- `window.addEventListener("blur", ...)` — 检测窗口失焦
+- 每次切屏记录 `{time: DateTime, duration: 失焦时长}` 推入 `switchLog`
+- `switchLog.length >= maxTabSwitches` 时触发自动交卷
+- 交卷前弹出提示："您已切换屏幕超过限制次数，系统将自动交卷"
+
+#### API 端点
+
+| 方法 | 路径 | 说明 | 认证 |
+|------|------|------|------|
+| GET | `/api/classes` | 教师获取自己的班级列表 | TEACHER |
+| POST | `/api/classes` | 教师创建班级 | TEACHER |
+| PUT | `/api/classes/[id]` | 教师编辑班级 | TEACHER (owner) |
+| DELETE | `/api/classes/[id]` | 教师删除班级 | TEACHER (owner) |
+| GET | `/api/classes/[id]/members` | 获取班级成员列表 | TEACHER (owner) |
+| POST | `/api/classes/[id]/members` | 手动添加学生 | TEACHER (owner) |
+| DELETE | `/api/classes/[id]/members` | 移除学生 | TEACHER (owner) |
+| POST | `/api/classes/[id]/join` | 学生通过邀请码加入班级 | STUDENT |
+| GET | `/api/tasks` | 学生：获取自己的考试列表（按班级）；教师：获取自己发布的考试列表 | 用户 |
+| POST | `/api/tasks` | 教师创建考试（选题→配置→指派班级） | TEACHER |
+| PUT | `/api/tasks/[id]` | 教师编辑未开始的考试 | TEACHER (owner) |
+| DELETE | `/api/tasks/[id]` | 教师删除未开始的考试 | TEACHER (owner) |
+| GET | `/api/tasks/[id]` | 获取考试详情 + 题目列表 | 用户（教师/班级成员） |
+| POST | `/api/tasks/[id]/submit` | 交卷（含切屏数据、每题用时） | STUDENT |
+| GET | `/api/tasks/[id]/results` | 教师查看考试成绩统计 | TEACHER (owner) |
+| GET | `/api/classes/[id]/invitations` | 获取班级邀请码列表 | TEACHER (owner) |
+| POST | `/api/classes/[id]/invitations` | 生成班级邀请码 | TEACHER (owner) |
+
+**POST /api/tasks 请求体（教师创建考试）：**
+```json
+{
+  "title": "期中测试",
+  "description": "第一章到第三章",
+  "classId": "class_xxx",
+  "questionIds": ["q1", "q2", "q3", "..."],
+  "questionOrder": "manual",
+  "deadline": "2026-06-01T23:59:59Z",
+  "perQuestionTime": 120,
+  "maxTabSwitches": 3
+}
+```
+
+**POST /api/tasks/[id]/submit 请求体（学生交卷）：**
+```json
+{
+  "answers": [
+    { "questionId": "q1", "userAnswer": "A", "timeSpent": 45 }
+  ],
+  "tabSwitches": 1,
+  "switchLog": [
+    { "time": "2026-05-22T10:00:05Z", "duration": 3 }
+  ],
+  "perQuestionTime": {
+    "q1": 45,
+    "q2": 120
+  }
+}
+```
+
+**GET /api/tasks/[id]/results 响应（教师查看成绩）：**
+```json
+{
+  "task": {
+    "id": "task_xxx",
+    "title": "期中测试",
+    "class": { "id": "class_xxx", "name": "一班" },
+    "totalQuestions": 20,
+    "submissionsCount": 35,
+    "averageCorrect": 14.5,
+    "averageCorrectRate": 0.725
+  },
+  "submissions": [
+    {
+      "user": { "id": "u1", "username": "张三" },
+      "status": "COMPLETED",
+      "correctCount": 16,
+      "totalCount": 20,
+      "tabSwitches": 0,
+      "switchLog": [],
+      "submittedAt": "2026-05-25T14:30:00Z",
+      "answers": [
+        {
+          "question": { "id": "q1", "content": "...", "answer": "A", "explanation": "..." },
+          "userAnswer": "A",
+          "isCorrect": true,
+          "timeSpent": 45
+        }
+      ]
+    }
+  ]
+}
+```
+
+**POST /api/tasks 服务端逻辑（创建考试时，为全班学生创建 TaskSubmission）：**
+```
+1. 验证教师身份
+2. 创建 Task（含 classId, questionIds, questionOrder, perQuestionTime, maxTabSwitches）
+3. 查询 ClassMember 获取该班级所有学生 userId
+4. 为每个学生创建 TaskSubmission（status: PENDING）
+5. 返回 Task 详情
+```
+
+#### 前端路由
+
+| 路由 | 说明 | 角色 |
+|------|------|------|
+| `/dashboard/teacher/classes` | 班级管理页（创建/编辑/删除班级，查看成员） | TEACHER |
+| `/dashboard/teacher/exams` | 考试管理页（创建/编辑/删除考试） | TEACHER |
+| `/dashboard/teacher/exams/[id]/results` | 成绩查看页（逐人详情 + 统计） | TEACHER |
+| `/dashboard/exams` | 学生考试列表（待考/已考/已逾期） | STUDENT |
+| `/dashboard/exams/[id]` | 学生作答页（考试中）或考试结果页（已完成） | STUDENT |
+
+#### 学生考试作答流程
+
+```
+学生进入 /dashboard/exams
+  │
+  ├──► 考试列表（三个状态Tab）
+  │     ├── 待考（PENDING，未逾期）
+  │     ├── 已考（COMPLETED）
+  │     └── 已逾期（OVERDUE，未完成且已过截止时间）
+  │
+  └──► 点击"开始考试"
+        │
+        ├──► 请求全屏（Fullscreen API）
+        │     └── 拒绝 → 提示"考试需要全屏模式，请允许后重试"，不允许开始
+        │
+        ├──► 进入逐题作答界面
+        │     ├── 显示：题号（N/总数）、题目内容、选项、每题倒计时
+        │     ├── 每题独立计时器（perQuestionTime 倒计时）
+        │     ├── 切到下一题 → 暂停当前计时，记录用时
+        │     ├── 切屏检测（visibilitychange + blur）
+        │     │   ├── 切屏次数 < maxTabSwitches → 记录 + 警告提示
+        │     │   └── 切屏次数 >= maxTabSwitches → 自动交卷
+        │     ├── 每题时限到 → 锁定本题（不可再修改），自动跳到下一题
+        │     └── 最后一题时限到或切屏超限 → 自动交卷
+        │
+        └──► 交卷（手动点击 或 自动触发）
+              ├── 弹出确认弹窗："确定要交卷吗？已答 X/总数 题"
+              ├── 提交答案 + 切屏日志 + 每题用时
+              ├── 写入 AnswerRecord（逐题）
+              ├── fire-and-forget → POST /api/wrong-questions（错题更新）
+              ├── 清除 localStorage 计时快照
+              ├── 退出全屏
+              └── 跳转结果页：总分、对错、正确答案、解析
+```
+
+#### 教师成绩查看
+
+```
+教师进入 /dashboard/teacher/exams/[id]/results
+  │
+  ├──► 顶部统计卡片
+  │     ├── 应参加人数 / 实际完成人数
+  │     ├── 全班平均正确率
+  │     └── 每题正确率分布
+  │
+  └──► 学生列表
+        ├── 按正确率排序（降序）
+        ├── 每行：姓名、状态、正确数/总数、切屏次数、交卷时间
+        ├── 展开详情：逐题答案（正确/错误）、每题用时
+        └── 切屏日志详情（时间线展示）
+```
 
 ### User Stories
 
@@ -559,6 +828,184 @@ Acceptance Criteria:
 - [ ] Given 自愈完成, Then 返回修复统计：创建数、更新数、清理数
 ```
 
+#### P0 -- Must Have（师生交互考试 V1.6）
+
+**US-23: 教师班级管理**
+```
+As a 教师,
+I want 创建、编辑、删除班级,
+so that 我能将学生分组管理，方便后续布置考试。
+
+Acceptance Criteria:
+- [ ] Given 教师进入 /dashboard/teacher/classes, Then 显示班级列表（名称、人数、创建时间）
+- [ ] Given 教师点击"创建班级", Then 弹出表单（班级名称、描述）
+- [ ] Given 创建完成, Then 自动生成班级邀请码（可复制分享）
+- [ ] Given 教师点击班级, Then 显示成员列表（头像/姓名、加入时间）
+- [ ] Given 教师点击"编辑", Then 可修改班级名称和描述
+- [ ] Given 教师点击"删除", When 班级有未结束的考试, Then 提示不允许删除
+```
+
+**US-24: 学生加入班级**
+```
+As a 学生,
+I want 输入班级邀请码加入班级,
+so that 我能参加教师发布的考试。
+
+Acceptance Criteria:
+- [ ] Given 学生进入加入班级页面, When 输入有效邀请码, Then 加入成功并显示班级名称
+- [ ] Given 邀请码无效/已过期/已使用, Then 显示对应错误提示
+- [ ] Given 学生已在班级中, Then 提示"你已是该班级成员"
+- [ ] Given 加入成功, Then 学生考试列表自动出现该班级的考试
+```
+
+**US-25: 教师创建考试**
+```
+As a 教师,
+I want 选择班级、挑选题目、配置考试参数后发布考试,
+so that 我能组织一场正式考试。
+
+Acceptance Criteria:
+- [ ] Given 教师进入 /dashboard/teacher/exams, When 点击"创建考试", Then 进入考试创建流程
+- [ ] Given Step 1, Then 选择目标班级（单选下拉）
+- [ ] Given Step 2, Then 从题库中多选题目（支持按分类筛选、搜索、题目预览），确认后进入配置页
+- [ ] Given Step 3, Then 配置：考试标题、说明、截止时间、题目顺序（保持手动/随机打乱）、每题时限（秒，可空）、最大切屏次数（默认3）
+- [ ] Given 配置完成, When 点击"发布", Then 为全班所有学生创建 TaskSubmission，返回考试详情
+- [ ] Given 创建成功, Then 学生端考试列表出现"待考"项
+```
+
+**US-26: 教师编辑/删除考试**
+```
+As a 教师,
+I want 编辑或删除未开始的考试,
+so that 我能修正考试配置或取消不需要的考试。
+
+Acceptance Criteria:
+- [ ] Given 考试状态为 PENDING（无学生提交）, Then 显示编辑和删除按钮
+- [ ] Given 教师点击"编辑", Then 可修改标题、说明、截止时间、题目列表、配置参数
+- [ ] Given 教师点击"删除", Then 弹出确认对话框，确认后删除 Task 及所有 TaskSubmission
+- [ ] Given 已有学生提交, Then 隐藏编辑和删除按钮（不可操作）
+```
+
+**US-27: 学生考试列表**
+```
+As a 学生,
+I want 查看我的考试列表（按待考/已考/已逾期分类）,
+so that 我能清楚了解哪些考试需要参加、哪些已完成、哪些已错过。
+
+Acceptance Criteria:
+- [ ] Given 学生进入 /dashboard/exams, Then 显示三个 Tab：待考/已考/已逾期
+- [ ] Given "待考" Tab, Then 显示状态=PENDING 且未逾期的考试（标题、班级、截止时间、题数、倒计时）
+- [ ] Given "已考" Tab, Then 显示已提交的考试（标题、班级、得分、提交时间）
+- [ ] Given "已逾期" Tab, Then 显示已过截止时间但未提交的考试（标记为"已逾期"）
+- [ ] Given 超过截止时间, Then 自动更新状态为 OVERDUE
+```
+
+**US-28: 学生参加考试（防作弊作答）**
+```
+As a 学生,
+I want 在全屏防作弊环境下逐题作答,
+so that 我能公平地完成考试。
+
+Acceptance Criteria:
+- [ ] Given 学生点击"开始考试", When 浏览器支持 Fullscreen API, Then 请求全屏
+- [ ] Given 拒绝全屏, Then 不允许开始考试，提示"考试需要全屏模式"
+- [ ] Given 进入作答界面, Then 显示题号（N/总数）、题目内容、选项、每题倒计时（若配置）
+- [ ] Given 每题独立倒计时, When 切到下一题, Then 暂停当前计时、恢复/启动下一题计时
+- [ ] Given 每题时限到, Then 锁定当前题（不可再修改答案），自动跳到下一题
+- [ ] Given 切屏（切换标签页/窗口失焦）, Then 记录切屏（+1），显示警告"你已切换屏幕 X/最大N 次"
+- [ ] Given 切屏次数 >= maxTabSwitches, Then 自动交卷，提示"已超过切屏限制，考试结束"
+- [ ] Given 最后一题时限到 或 超切屏限制, Then 自动交卷
+- [ ] Given 截止时间到, Then 自动交卷
+- [ ] Given 页面刷新, Then 恢复计时状态和已选答案（localStorage 快照）
+```
+
+**US-29: 学生交卷与成绩展示**
+```
+As a 学生,
+I want 交卷后立即看到成绩和正确答案,
+so that 我能知道自己的考试表现和错题解析。
+
+Acceptance Criteria:
+- [ ] Given 学生点击"交卷", Then 弹出确认弹窗："确定要交卷吗？已答 X/总数 题"
+- [ ] Given 确认交卷, Then 提交答案 + 切屏日志 + 每题用时到 API
+- [ ] Given 提交成功, Then 清除 localStorage 计时快照，退出全屏
+- [ ] Given 跳转结果页, Then 显示：总分（正确数/总题数）、正确率
+- [ ] Given 结果页题目列表, Then 逐题显示：题目、你的答案、正确答案、解析、用时
+- [ ] Given 答错的题, Then 高亮标记，并 fire-and-forget 写入 WrongQuestion
+- [ ] Given 结果页, Then 显示切屏次数（如有切屏）
+```
+
+**US-30: 教师查看考试成绩**
+```
+As a 教师,
+I want 查看某场考试的所有学生成绩和统计,
+so that 我能了解全班整体情况和每个学生的薄弱环节。
+
+Acceptance Criteria:
+- [ ] Given 教师进入 /dashboard/teacher/exams/[id]/results, Then 显示顶部统计卡片
+- [ ] Given 统计卡片, Then 显示：应参加人数、实际完成人数、全班平均正确率
+- [ ] Given 每题正确率分布, Then 柱状图或列表展示每道题的全班正确率
+- [ ] Given 学生列表, Then 按正确率降序排列：姓名、状态、正确数/总数、切屏次数、交卷时间
+- [ ] Given 点击学生行展开, Then 显示逐题答题详情（题目、答案、是否正确、用时）
+- [ ] Given 展开详情, Then 显示切屏日志时间线（{时间, 失焦时长}）
+- [ ] Given 非该考试创建者, Then 返回 403
+```
+
+#### P1 -- Should Have（师生交互考试 V1.6）
+
+**US-31: 班级成员管理（手动添加/移除）**
+```
+As a 教师,
+I want 手动添加或移除班级成员,
+so that 我能灵活管理班级学生。
+
+Acceptance Criteria:
+- [ ] Given 教师进入班级成员列表, Then 显示"添加学生"按钮
+- [ ] Given 点击"添加学生", Then 弹出搜索框（按用户名搜索）+ 添加按钮
+- [ ] Given 成员列表每行, Then 显示"移除"按钮
+- [ ] Given 点击"移除", Then 弹出确认对话框，确认后移除
+- [ ] Given 学生被移除班级, Then 该班级的未完成考试 TaskSubmission 仍保留（不自动删除）
+```
+
+**US-32: 班级邀请码管理**
+```
+As a 教师,
+I want 管理班级的邀请码（生成新码、查看列表、撤销旧码）,
+so that 我能安全地控制学生加入班级。
+
+Acceptance Criteria:
+- [ ] Given 教师进入班级详情, Then 显示邀请码列表（码、状态、生成时间、使用者）
+- [ ] Given 教师点击"生成新邀请码", Then 创建新的 UNUSED 邀请码（关联 classId）
+- [ ] Given 教师点击"撤销", Then 将该邀请码状态改为 REVOKED
+- [ ] Given 邀请码已使用, Then 不可撤销
+```
+
+**US-33: 教师题目预览与选择优化**
+```
+As a 教师,
+I want 在创建考试时高效地浏览和选择题目,
+so that 我能快速从大量题库中选出合适的题目。
+
+Acceptance Criteria:
+- [ ] Given 选题界面, Then 支持按分类筛选、关键词搜索、难度筛选
+- [ ] Given 题目卡片, Then 显示题目内容（截断）、分类、难度、答案（可隐藏）
+- [ ] Given 已选题目列表, Then 显示已选题数和题目摘要
+- [ ] Given 支持拖拽排序, When questionOrder="manual", Then 按拖拽顺序保存
+- [ ] Given 大量题目（1000+）, Then 分页加载（每页 50 条）
+```
+
+**US-34: 考试倒计时与提醒**
+```
+As a 学生,
+I want 在考试列表看到距离截止时间的倒计时,
+so that 我不会错过考试截止时间。
+
+Acceptance Criteria:
+- [ ] Given "待考" Tab, Then 每个考试卡片显示截止时间倒计时（天/时/分）
+- [ ] Given 距离截止 < 1 小时, Then 倒计时高亮（红色/闪烁）
+- [ ] Given 距离截止 < 24 小时, Then 倒计时黄色警告
+```
+
 ### Non-Functional Requirements
 
 | Category | Requirement | Target |
@@ -566,11 +1013,15 @@ Acceptance Criteria:
 | **Performance** | 页面首屏加载 | < 2s |
 | **Performance** | API 响应 | < 500ms |
 | **Performance** | Fire-and-forget 请求 | 不阻塞 UI，静默失败 |
+| **Performance** | 考试计时器精度 | 每秒更新，localStorage 快照间隔 <= 5s |
 | **Security** | 密码存储 | bcrypt 哈希 |
 | **Security** | 邀请码防爆 | 限流 |
 | **Security** | 系统设置页 | ADMIN only |
+| **Security** | 防作弊全屏 | 拒绝全屏则不能开始考试 |
+| **Security** | 切屏检测 | visibilitychange + blur 双重检测 |
 | **Accessibility** | 响应式设计 | 桌面 + 移动端 |
 | **Data Integrity** | 自愈机制 | 支持从 AnswerRecord 重建 WrongQuestion |
+| **Data Integrity** | 考试计时恢复 | localStorage 快照防刷新丢时 |
 | **Decoupling** | 练习模块零改动 | 错题更新完全通过独立 API 调用 |
 
 ### Dependencies
@@ -586,6 +1037,10 @@ Acceptance Criteria:
 | xlsx | Excel 解析 |
 | AnswerRecord 表 | 自愈机制的数据源 |
 | 现有练习模块 API | 错题重做复用练习接口 |
+| 现有题库 + 分类系统 | 教师创建考试时从题库选题 |
+| 现有 User 表（含 TEACHER 角色） | 教师身份已存在于系统 |
+| Fullscreen API | 浏览器全屏能力（防作弊依赖） |
+| localStorage | 考试计时快照恢复 |
 
 ### Risks & Mitigations
 
@@ -596,6 +1051,10 @@ Acceptance Criteria:
 | 练习模块后续重构影响错题回顾 | Low | Medium | API 契约隔离：练习模块不感知 WrongQuestion，错题模块仅依赖 AnswerRecord |
 | errorCount 权重计算争议（是否应该对-1） | Low | Low | 可后续通过 Setting 表配置权重策略（如 `wrong_question_weight_strategy`） |
 | 大量用户同时 self-heal 造成数据库压力 | Low | Medium | 仅允许当前用户操作自己的数据；可加限流 |
+| Fullscreen API 在部分浏览器不兼容（如 iOS Safari） | Medium | High | 检测 Fullscreen API 可用性，不可用时降级为"窗口最大化 + 警告提示" |
+| 浏览器切屏检测可能被绕过（虚拟机/多显示器） | Medium | Medium | 切屏检测作为辅助手段，结合每题独立计时降低作弊收益 |
+| 创建考试时为全班学生批量创建 TaskSubmission 耗时 | Medium | Medium | 异步处理：先创建 Task，后台队列批量创建 Submission；前端显示创建中状态 |
+| 教师删除有学生的班级造成数据孤立 | Low | Low | 限制：有未结束考试时不允许删除班级；已结束考试的 Task 数据保留 |
 
 ---
 
@@ -629,13 +1088,22 @@ Acceptance Criteria:
 - 自愈机制（从 AnswerRecord 重建 WrongQuestion）
 - 替换 /dashboard/history 路由为错题回顾页
 
-### V2.0 规划 — 师生模式
-- 教师角色（TEACHER）
-- 教师创建/管理班级
-- 教师布置作业（指定分类、题数、截止时间）
-- 学生加入班级、完成作业
-- 教师查看学生答题数据和统计
-- 班级排行榜
+### V1.6 范围 — 师生交互考试模块
+- **班级管理：** 教师创建/编辑/删除班级，生成班级邀请码
+- **班级成员：** 学生输入邀请码加入班级，教师查看成员列表、手动添加/移除学生
+- **考试管理：** 教师创建考试（选班级→选题→设置顺序→配置时限/切屏→发布），编辑/删除未开始的考试
+- **学生考试列表：** 三状态 Tab（待考/已考/已逾期），截止时间倒计时
+- **防作弊作答：** 强制全屏（Fullscreen API），每题独立倒计时（切题暂停/恢复），切屏检测（visibilitychange + blur），超限自动交卷，localStorage 计时快照
+- **交卷成绩：** 确认交卷弹窗，提交答案+切屏日志+每题用时，交卷即出分（对错/解析），错题自动写入 WrongQuestion
+- **教师成绩查看：** 全班统计卡片（平均正确率/每题正确率分布），学生列表（按正确率排序），展开详情（逐题答案+用时），切屏日志时间线
+- **数据模型变更：** 新增 Class/ClassMember，修改 Task/TaskSubmission/InvitationCode
+
+### V2.0 规划 — 增强功能
+- 班级排行榜（按考试平均分排名）
+- 教师批量导入学生到班级
+- 考试题目随机化（每人题目顺序不同）
+- 考试时段限制（开始时间 + 截止时间，而非仅截止时间）
+- 考试通知（站内信/邮件提醒学生有新考试）
 
 ### Success Metrics
 
@@ -644,6 +1112,8 @@ Acceptance Criteria:
 | 题库导入成功率 | 95%+ |
 | 刷题完成率 | 80%+ |
 | 用户留存率 | 40%+ |
+| 考试完成率（V1.6） | 90%+（开始考试后完成交卷） |
+| 防作弊有效性（V1.6） | 切屏检测覆盖率 100%（支持 Fullscreen API 的浏览器） |
 
 ---
 
@@ -702,6 +1172,8 @@ ShopItem (商店物品)
 InvitationCode (邀请码)
 ├── id, code, role, status
 ├── expiresAt, usedById, usedAt
+├── classId? (V1.6 新增：班级专属邀请码)
+├── createdById? (V1.6 新增：生成者)
 └── createdAt
 
 PointLog (积分记录)
@@ -721,6 +1193,38 @@ Setting (系统设置) — V1.5 新增
 ├── type: NUMBER | BOOLEAN | STRING
 ├── label, description
 └── updatedAt
+
+Class (班级) — V1.6 新增
+├── id, name, description?
+├── teacherId (FK User)
+├── members → ClassMember[]
+├── invitations → InvitationCode[]
+├── tasks → Task[]
+└── createdAt
+
+ClassMember (班级成员) — V1.6 新增
+├── id, classId, userId
+├── joinedAt
+└── @@unique([classId, userId])
+
+Task (任务/考试) — V1.6 扩展
+├── id, teacherId, title, description
+├── classId? (V1.6 新增：绑定班级)
+├── deadline, questionIds (Json)
+├── questionOrder: "manual" | "shuffle" (V1.6 新增)
+├── perQuestionTime: Int? (V1.6 新增)
+├── maxTabSwitches: Int @default(3) (V1.6 新增)
+├── assignedTo → User[] (V1.6 废弃：改用 classId)
+└── submissions → TaskSubmission[]
+
+TaskSubmission (任务提交) — V1.6 扩展
+├── id, taskId, userId
+├── status: PENDING | COMPLETED | OVERDUE
+├── completedAt, createdAt
+├── tabSwitches: Int @default(0) (V1.6 新增)
+├── switchLog: Json @default("[]") (V1.6 新增)
+├── perQuestionTime: Json? (V1.6 新增)
+└── submittedAt: DateTime? (V1.6 新增)
 ```
 
 ## Appendix C: xlsx 导入格式
@@ -736,4 +1240,4 @@ Setting (系统设置) — V1.5 新增
 
 ---
 
-*PRD Version: 3.0 | Last Updated: 2026-05-22* | Changes: Added 错题回顾模块 (V1.5) — 7 new user stories (US-16~22), WrongQuestion + Setting data models, 4 API endpoints, self-heal mechanism, admin settings page, fire-and-forget decoupling*
+*PRD Version: 4.0 | Last Updated: 2026-05-22* | Changes: Added 师生交互考试模块 (V1.6) — 12 new user stories (US-23~34), Class + ClassMember data models, Task/TaskSubmission/InvitationCode extension, anti-cheating mechanism (fullscreen + per-question timer + tab-switch detection), teacher class management + exam publishing + result review, student exam flow with localStorage timer snapshots, 17 new API endpoints*

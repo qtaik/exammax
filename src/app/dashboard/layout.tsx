@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { BookOpen, Trophy, ShoppingBag, RotateCcw, BarChart3, Users, HelpCircle, Settings, LogOut, Home, CalendarCheck, Award, User } from "lucide-react"
+import { BookOpen, Trophy, ShoppingBag, RotateCcw, BarChart3, Users, HelpCircle, Settings, LogOut, Home, CalendarCheck, Award, User, FileText, School } from "lucide-react"
 
 interface User {
   id: string
@@ -15,6 +15,7 @@ interface User {
 const navItems = [
   { href: "/dashboard", label: "首页", icon: Home, roles: ["STUDENT", "TEACHER", "ADMIN"] },
   { href: "/dashboard/practice", label: "开始刷题", icon: BookOpen, roles: ["STUDENT", "TEACHER", "ADMIN"] },
+  { href: "/dashboard/exams", label: "我的考试", icon: FileText, roles: ["STUDENT"] },
   { href: "/dashboard/history", label: "错题回顾", icon: RotateCcw, roles: ["STUDENT", "TEACHER", "ADMIN"] },
   { href: "/dashboard/checkin", label: "签到打卡", icon: CalendarCheck, roles: ["STUDENT", "TEACHER", "ADMIN"] },
   { href: "/dashboard/leaderboard", label: "排行榜", icon: Trophy, roles: ["STUDENT", "TEACHER", "ADMIN"] },
@@ -24,6 +25,8 @@ const navItems = [
 ]
 
 const adminItems = [
+  { href: "/dashboard/teacher/classes", label: "班级管理", icon: School, roles: ["TEACHER", "ADMIN"] },
+  { href: "/dashboard/teacher/exams", label: "考试管理", icon: FileText, roles: ["TEACHER", "ADMIN"] },
   { href: "/dashboard/admin/users", label: "用户管理", icon: Users, roles: ["ADMIN"] },
   { href: "/dashboard/admin/questions", label: "题库管理", icon: HelpCircle, roles: ["ADMIN"] },
   { href: "/dashboard/admin/invitations", label: "邀请码管理", icon: Settings, roles: ["ADMIN"] },
