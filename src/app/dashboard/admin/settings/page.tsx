@@ -46,6 +46,13 @@ const DEFAULT_SETTINGS = [
     type: "string",
     defaultValue: "Asia/Shanghai",
   },
+  {
+    key: "scheduler_interval_seconds",
+    label: "定时清理间隔（秒）",
+    description: "定时任务执行间隔，默认3600秒（1小时），最小10秒",
+    type: "number",
+    defaultValue: "3600",
+  },
 ]
 
 export default function AdminSettingsPage() {
@@ -64,10 +71,12 @@ export default function AdminSettingsPage() {
       const data = await res.json()
       const existing = data.settings || []
 
-      // 合并默认值
+      // 合并默认值：DB 有值时用 DB value，但 label/description 优先用 DEFAULT 的定义
       const merged = DEFAULT_SETTINGS.map((def) => {
         const found = existing.find((s: SettingItem) => s.key === def.key)
-        return found || { key: def.key, value: def.defaultValue, type: def.type, label: def.label, description: def.description }
+        return found
+          ? { ...found, label: found.label || def.label, description: found.description || def.description }
+          : { key: def.key, value: def.defaultValue, type: def.type, label: def.label, description: def.description }
       })
       setSettings(merged)
       const vals: Record<string, string> = {}
