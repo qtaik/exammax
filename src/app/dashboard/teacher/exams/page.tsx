@@ -218,7 +218,7 @@ export default function TeacherExamsPage() {
 
       {/* Create Exam Dialog */}
       <Dialog open={createDialog} onOpenChange={setCreateDialog}>
-        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader><DialogTitle>发布新考试</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <Input placeholder="考试标题" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
@@ -249,9 +249,9 @@ export default function TeacherExamsPage() {
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium">选题（已选 {selectedIds.length} 题）</label>
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                <label className="text-sm font-medium shrink-0">选题（已选 {selectedIds.length} 题）</label>
+                <div className="flex items-center gap-2 flex-wrap">
                   <input
                     type="number"
                     className="w-14 rounded-md border px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-primary"
