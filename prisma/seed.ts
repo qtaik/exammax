@@ -73,31 +73,33 @@ async function main() {
   })
   console.log('默认分类创建成功')
 
-  // 创建徽章
+  // 创建徽章（7个成就徽章）
   const badges = [
-    { name: '初出茅庐', icon: '🌱', description: '完成第一道题目', condition: JSON.stringify({ type: 'answer_count', count: 1 }) },
-    { name: '勤学好问', icon: '📚', description: '累计答题10道', condition: JSON.stringify({ type: 'answer_count', count: 10 }) },
-    { name: '百炼成钢', icon: '💪', description: '累计答题100道', condition: JSON.stringify({ type: 'answer_count', count: 100 }) },
-    { name: '连续签到3天', icon: '🔥', description: '连续签到3天', condition: JSON.stringify({ type: 'streak', days: 3 }) },
-    { name: '连续签到7天', icon: '⭐', description: '连续签到7天', condition: JSON.stringify({ type: 'streak', days: 7 }) },
-    { name: '连续签到30天', icon: '👑', description: '连续签到30天', condition: JSON.stringify({ type: 'streak', days: 30 }) },
-    { name: '正确率90%', icon: '🎯', description: '答题正确率达到90%', condition: JSON.stringify({ type: 'accuracy', rate: 90 }) },
-    { name: '答题达人', icon: '🔢', description: '累计答对50道题', condition: JSON.stringify({ type: 'correct_count', count: 50 }) },
+    { name: '我上我也行', icon: '🆗', description: '完成第一道题目', condition: JSON.stringify({ type: 'answer_count', count: 1 }) },
+    { name: '扶我起来还能再刷', icon: '🔄', description: '累计答题10道', condition: JSON.stringify({ type: 'answer_count', count: 10 }) },
+    { name: '键盘冒烟了', icon: '⌨️', description: '累计答题100道', condition: JSON.stringify({ type: 'answer_count', count: 100 }) },
+    { name: '难道我真的这么废柴吗？', icon: '😭', description: '正确率达到20%', condition: JSON.stringify({ type: 'accuracy', rate: 20 }) },
+    { name: '好像有点东西', icon: '🤔', description: '正确率达到50%', condition: JSON.stringify({ type: 'accuracy', rate: 50 }) },
+    { name: '出题老师你过来一下', icon: '💢', description: '正确率达到90%', condition: JSON.stringify({ type: 'accuracy', rate: 90 }) },
+    { name: '对王之王', icon: '👑', description: '累计答对50道题', condition: JSON.stringify({ type: 'correct_count', count: 50 }) },
   ]
   for (const badge of badges) {
     await prisma.badge.upsert({ where: { name: badge.name }, update: {}, create: badge })
   }
   console.log('徽章创建成功:', badges.length, '个')
 
-  // 创建商店物品
+  // 创建称号（6常驻商城 + 4限定抽奖）
   const shopItems = [
-    { name: '铜牌勋章', type: 'MEDAL' as const, price: 100, description: '入门级勋章', icon: '🥉' },
-    { name: '银牌勋章', type: 'MEDAL' as const, price: 300, description: '进阶勋章', icon: '🥈' },
-    { name: '金牌勋章', type: 'MEDAL' as const, price: 500, description: '高级勋章', icon: '🥇' },
-    { name: '钻石勋章', type: 'MEDAL' as const, price: 1000, description: '稀有勋章', icon: '💎' },
-    { name: '学习新手', type: 'TITLE' as const, price: 50, description: '称号：学习新手', icon: '📖' },
-    { name: '学霸', type: 'TITLE' as const, price: 500, description: '称号：学霸', icon: '🎓' },
-    { name: '学神', type: 'TITLE' as const, price: 2000, description: '称号：学神', icon: '🏆' },
+    { name: '哈基米', type: 'TITLE' as const, price: 200, description: '称号：哈基米', icon: '🐱', limited: false },
+    { name: '我的刀盾', type: 'TITLE' as const, price: 300, description: '称号：我的刀盾', icon: '🛡️', limited: false },
+    { name: '比比拉布', type: 'TITLE' as const, price: 400, description: '称号：比比拉布', icon: '💕', limited: false },
+    { name: '咕咕嘎嘎', type: 'TITLE' as const, price: 500, description: '称号：咕咕嘎嘎', icon: '🦆', limited: false },
+    { name: '古希腊掌管摆烂的神', type: 'TITLE' as const, price: 800, description: '称号：古希腊掌管摆烂的神', icon: '🏛️', limited: false },
+    { name: '尊嘟假嘟', type: 'TITLE' as const, price: 1000, description: '称号：尊嘟假嘟', icon: '🤨', limited: false },
+    { name: '命运的齿轮开始转动', type: 'TITLE' as const, price: 0, description: '限定称号：命运的齿轮开始转动', icon: '⚙️', limited: true },
+    { name: '被选召的孩子', type: 'TITLE' as const, price: 0, description: '限定称号：被选召的孩子', icon: '🌟', limited: true },
+    { name: '此号已开光', type: 'TITLE' as const, price: 0, description: '限定称号：此号已开光', icon: '✨', limited: true },
+    { name: '服务器の守護神', type: 'TITLE' as const, price: 0, description: '限定称号：服务器の守護神', icon: '🏰', limited: true },
   ]
   for (const item of shopItems) {
     await prisma.shopItem.upsert({ where: { name: item.name }, update: {}, create: item })
