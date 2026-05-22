@@ -17,6 +17,7 @@ export async function GET(req: Request) {
     }
 
     const items = await prisma.shopItem.findMany({
+      where: { limited: false },
       include: {
         users: {
           where: { userId: user!.userId },

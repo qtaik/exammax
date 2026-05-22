@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth"
+import { checkAndAwardBadges } from "@/lib/badge-checker"
 
 export async function GET(req: Request) {
   try {
@@ -113,7 +114,7 @@ export async function POST(req: Request) {
         break
     }
 
-    // 只记录答题历史，不给积分（积分从签到/成就等渠道获取）
+    // 只记录答题历史，不给积分（积分从签到/考试等渠道获取）
     await prisma.answerRecord.create({
       data: {
         userId: authResult.user!.userId,
@@ -123,6 +124,9 @@ export async function POST(req: Request) {
         timeSpent: timeSpent || 0,
       },
     })
+
+    // fire-and-forget 检查勋章
+    checkAndAwardBadges(authResult.user!.userId).catch(() => {})
 
     return NextResponse.json({
       correct,

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth"
+import { checkAndAwardBadges } from "@/lib/badge-checker"
 
 export async function POST(req: Request) {
   try {
@@ -103,6 +104,8 @@ export async function POST(req: Request) {
       leveledUp = true
     }
 
+    const badgesAwarded = await checkAndAwardBadges(authResult.user!.userId)
+
     return NextResponse.json({
       total: answers.length,
       correct: correctCount,
@@ -112,6 +115,7 @@ export async function POST(req: Request) {
       allCorrect,
       leveledUp,
       newLevel: leveledUp ? newLevel : undefined,
+      badgesAwarded,
       timeSpent: totalTime,
       results,
     })

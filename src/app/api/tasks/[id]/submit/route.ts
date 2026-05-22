@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { requireAuth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { checkAndAwardBadges } from "@/lib/badge-checker"
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const { error, user } = await requireAuth(req)
@@ -104,6 +105,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       leveledUp = true
     }
 
+    // 检查勋章
+    const badgesAwarded = await checkAndAwardBadges(user!.userId)
+
     return NextResponse.json({
       success: true,
       results: {
@@ -114,6 +118,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         allCorrect,
         leveledUp,
         newLevel: leveledUp ? expectedLevel : undefined,
+        badgesAwarded,
       },
     })
   } catch (err) {
