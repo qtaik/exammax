@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { School, Users, User, LogIn, Copy } from "lucide-react"
+import { School, Users, User, LogIn, Copy, LogOut } from "lucide-react"
 
 interface ClassItem {
   id: string; name: string; description: string | null
@@ -20,6 +20,8 @@ export default function StudentClassesPage() {
   const [inviteCode, setInviteCode] = useState("")
   const [joining, setJoining] = useState(false)
   const [joinResult, setJoinResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [leaveClass, setLeaveClass] = useState<ClassItem | null>(null)
+  const [leaving, setLeaving] = useState(false)
 
   const fetchClasses = useCallback(async () => {
     setLoading(true)
@@ -56,6 +58,27 @@ export default function StudentClassesPage() {
     } catch {
       setJoinResult({ ok: false, msg: "网络错误" })
     } finally { setJoining(false) }
+  }
+
+  const handleLeave = async () => {
+    if (!leaveClass) return
+    setLeaving(true)
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch(`/api/classes/${leaveClass.id}/leave`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        setClasses((prev) => prev.filter((c) => c.id !== leaveClass.id))
+        setLeaveClass(null)
+      } else {
+        const data = await res.json()
+        alert(data.error || "退出失败")
+      }
+    } catch {
+      alert("网络错误")
+    } finally { setLeaving(false) }
   }
 
   const openInvite = () => {
@@ -101,12 +124,35 @@ export default function StudentClassesPage() {
                   <Badge variant="secondary">
                     <Users className="h-3 w-3 mr-1" />{cls._count.members}人
                   </Badge>
+                  <button
+                    className="ml-auto text-muted-foreground hover:text-destructive transition-colors"
+                    onClick={() => setLeaveClass(cls)}
+                    title="退出班级"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </button>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      {/* Leave Class Confirm Dialog */}
+      <Dialog open={!!leaveClass} onOpenChange={() => setLeaveClass(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>退出班级</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            确定要退出 <span className="font-medium text-foreground">{leaveClass?.name}</span> 吗？退出后需重新通过邀请码加入。
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLeaveClass(null)}>取消</Button>
+            <Button variant="destructive" onClick={handleLeave} disabled={leaving}>
+              {leaving ? "退出中..." : "确认退出"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Invite Code Dialog */}
       <Dialog open={inviteDialog} onOpenChange={setInviteDialog}>
