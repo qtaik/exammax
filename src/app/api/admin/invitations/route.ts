@@ -80,9 +80,10 @@ export async function POST(req: Request) {
       }
     }
 
+    const prefix = classId ? "exmclass_" : "exam_"
     const codes: string[] = []
     for (let i = 0; i < count; i++) {
-      const code = "exam_" + crypto.randomBytes(32).toString("hex")
+      const code = prefix + crypto.randomBytes(32).toString("hex")
       codes.push(code)
     }
 

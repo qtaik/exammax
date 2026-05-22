@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Users, Plus, Trash2, Copy, Eye, Search } from "lucide-react"
+import { Users, Plus, Trash2, Copy, Eye, Search, Check } from "lucide-react"
 
 interface ClassItem {
   id: string
@@ -31,6 +31,7 @@ export default function TeacherClassesPage() {
   const [memberDialog, setMemberDialog] = useState<ClassItem | null>(null)
   const [inviteDialog, setInviteDialog] = useState<ClassItem | null>(null)
   const [inviteCode, setInviteCode] = useState("")
+  const [copied, setCopied] = useState(false)
   const [formName, setFormName] = useState("")
   const [formDesc, setFormDesc] = useState("")
   const [members, setMembers] = useState<Member[]>([])
@@ -309,13 +310,29 @@ export default function TeacherClassesPage() {
       </Dialog>
 
       {/* Invite Code Dialog */}
-      <Dialog open={!!inviteDialog} onOpenChange={() => { setInviteDialog(null); setInviteCode("") }}>
+      <Dialog open={!!inviteDialog} onOpenChange={() => { setInviteDialog(null); setInviteCode(""); setCopied(false) }}>
         <DialogContent>
           <DialogHeader><DialogTitle>班级邀请码 - {inviteDialog?.name}</DialogTitle></DialogHeader>
           <div className="text-center py-4">
             {inviteCode ? (
-              <div className="space-y-2">
-                <p className="text-2xl font-mono font-bold text-primary tracking-widest">{inviteCode}</p>
+              <div className="space-y-3">
+                <p className="text-2xl font-mono font-bold text-primary tracking-widest">
+                  {inviteCode.length > 16
+                    ? `${inviteCode.slice(0, 8)}...${inviteCode.slice(-4)}`
+                    : inviteCode}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(inviteCode)
+                    setCopied(true)
+                    setTimeout(() => setCopied(false), 2000)
+                  }}
+                >
+                  {copied ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                  {copied ? "已复制" : "复制完整邀请码"}
+                </Button>
                 <p className="text-sm text-muted-foreground">学生输入此邀请码即可加入班级</p>
               </div>
             ) : <p className="text-sm text-muted-foreground">生成中...</p>}
