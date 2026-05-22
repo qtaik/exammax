@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   CheckCircle, XCircle, ArrowRight, ArrowLeft, Clock, Trophy,
-  Target, Percent, BookOpen, Shuffle, FileText, Timer,
+  Target, Percent, BookOpen, Shuffle, FileText, Timer, Trash2,
 } from "lucide-react"
 
 interface Category {
@@ -118,6 +118,8 @@ export default function PracticePage() {
   const [examSubmitting, setExamSubmitting] = useState(false)
   const [examAvailableCount, setExamAvailableCount] = useState(0)
   const [continueDialog, setContinueDialog] = useState<PracticeProgress | null>(null)
+  const [categoryProgress, setCategoryProgress] = useState<Record<string, PracticeProgress | null>>({})
+  const [progressVersion, setProgressVersion] = useState(0)
   const [examResult, setExamResult] = useState<{
     total: number
     correct: number
@@ -143,6 +145,17 @@ export default function PracticePage() {
       .catch(() => {})
       .finally(() => setLoadingCategories(false))
   }, [])
+
+  // --- Load all category progress for onebyone mode ---
+  useEffect(() => {
+    if (mode === "onebyone" && categories.length > 0) {
+      const prog: Record<string, PracticeProgress | null> = {}
+      categories.forEach((cat) => {
+        prog[cat.id] = loadProgress(cat.id)
+      })
+      setCategoryProgress(prog)
+    }
+  }, [mode, categories, phase, progressVersion])
 
   // --- One-by-one timer ---
   useEffect(() => {
@@ -533,7 +546,10 @@ export default function PracticePage() {
 
         {/* Category grid */}
         <div className="grid gap-3 sm:grid-cols-2">
-          {categories.map((cat) => (
+          {categories.map((cat) => {
+            const prog = categoryProgress[cat.id]
+            const hasProgress = !!(prog && prog.questions.length > 0)
+            return (
             <Card
               key={cat.id}
               className={`cursor-pointer hover:shadow-md transition ${
@@ -558,9 +574,33 @@ export default function PracticePage() {
                   </div>
                   <Badge variant="secondary" className="ml-2 shrink-0">{cat._count.questions} 题</Badge>
                 </div>
+                {mode === "onebyone" && hasProgress && (
+                  <div className="mt-3 pt-3 border-t">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                      <span>进度: {prog!.summary.total} / {prog!.questions.length} 题</span>
+                      <span>正确率: {prog!.summary.total > 0 ? Math.round((prog!.summary.correct / prog!.summary.total) * 100) : 0}%</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-1.5 mb-2">
+                      <div
+                        className="bg-primary h-1.5 rounded-full transition-all"
+                        style={{ width: `${prog!.questions.length > 0 ? Math.round((prog!.summary.total / prog!.questions.length) * 100) : 0}%` }}
+                      />
+                    </div>
+                    <button
+                      className="flex items-center gap-1 text-xs text-destructive hover:underline mt-1"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        clearProgress(cat.id)
+                        setProgressVersion((v) => v + 1)
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3" /> 清除进度
+                    </button>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          ))}
+          )})}
         </div>
 
         {mode === "exam" && (
