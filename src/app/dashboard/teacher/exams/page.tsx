@@ -50,6 +50,7 @@ export default function TeacherExamsPage() {
   const [questionPool, setQuestionPool] = useState<Question[]>([])
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [randomCount, setRandomCount] = useState("")
+  const [questionSearch, setQuestionSearch] = useState("")
   const [saving, setSaving] = useState(false)
   const [previewQ, setPreviewQ] = useState<Question | null>(null)
 
@@ -82,6 +83,7 @@ export default function TeacherExamsPage() {
     setFormOrder("manual"); setFormPerTime(""); setFormMaxSwitches("3")
     setSelectedIds([])
     setRandomCount("")
+    setQuestionSearch("")
     try {
       const res = await fetch("/api/practice?mode=all")
       setQuestionPool((await res.json()).questions || [])
@@ -248,13 +250,46 @@ export default function TeacherExamsPage() {
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
-                <label className="text-sm font-medium shrink-0">选题（已选 {selectedIds.length} 题）</label>
-                <div className="flex items-center gap-2 flex-wrap">
+            {/* Question Selection — two-column layout */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Left: question pool */}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <label className="text-sm font-medium shrink-0">题库</label>
+                  <input
+                    className="flex-1 rounded-md border px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="搜索题目..."
+                    value={questionSearch}
+                    onChange={(e) => setQuestionSearch(e.target.value)}
+                  />
+                </div>
+                <div className="max-h-[50vh] overflow-y-auto border rounded-lg divide-y">
+                  {questionPool
+                    .filter((q) => !selectedIds.includes(q.id))
+                    .filter((q) => !questionSearch || q.content.includes(questionSearch) || q.category.name.includes(questionSearch))
+                    .map((q) => (
+                      <div key={q.id} className="flex items-center gap-2 p-2 hover:bg-muted/30 text-sm">
+                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0 shrink-0" onClick={() => toggleQuestion(q.id)}>
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                        <span className="flex-1 truncate">{q.content.slice(0, 40)}</span>
+                        <Badge variant="outline" className="text-xs shrink-0">{q.category.name}</Badge>
+                        <button className="text-xs hover:underline text-muted-foreground shrink-0" onClick={() => setPreviewQ(q)}>预览</button>
+                      </div>
+                    ))}
+                  {questionPool.filter((q) => !selectedIds.includes(q.id)).filter((q) => !questionSearch || q.content.includes(questionSearch)).length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-4">暂无题目</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Right: selected questions */}
+              <div>
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <label className="text-sm font-medium shrink-0">已选 {selectedIds.length} 题</label>
                   <input
                     type="number"
-                    className="w-14 rounded-md border px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-primary"
+                    className="w-12 rounded-md border px-1.5 py-0.5 text-xs outline-none focus:ring-2 focus:ring-primary"
                     placeholder="N"
                     min="1"
                     max={questionPool.filter((q) => !selectedIds.includes(q.id)).length}
@@ -262,47 +297,36 @@ export default function TeacherExamsPage() {
                     onChange={(e) => setRandomCount(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") handleRandomSelect() }}
                   />
-                  <Button size="sm" variant="outline" onClick={handleRandomSelect} disabled={!randomCount || parseInt(randomCount) < 1}>
-                    <Shuffle className="h-3 w-3 mr-1" /> 随机选题
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleRandomSelect} disabled={!randomCount || parseInt(randomCount) < 1}>
+                    <Shuffle className="h-3 w-3 mr-1" /> 随机
                   </Button>
-                  <Button size="sm" variant="outline" onClick={handleShuffle} disabled={selectedIds.length < 2}>
-                    <Shuffle className="h-3 w-3 mr-1" /> 打乱顺序
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleShuffle} disabled={selectedIds.length < 2}>
+                    <Shuffle className="h-3 w-3 mr-1" /> 打乱
                   </Button>
                 </div>
-              </div>
-
-              {formOrder === "manual" && selectedIds.length > 0 && (
-                <div className="space-y-1 mb-3 border rounded-lg p-2">
-                  <p className="text-xs text-muted-foreground mb-1">已选题目顺序（拖拽图标调整，点击预览）</p>
-                  {selectedIds.map((id, idx) => {
-                    const q = questionPool.find((x) => x.id === id)
-                    return q ? (
-                      <div key={id} className="flex items-center gap-2 p-1 rounded bg-muted/50 text-sm min-w-0">
-                        <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => moveQuestion(id, 1)} disabled={idx === selectedIds.length - 1}>↓</Button>
-                        <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => moveQuestion(id, -1)} disabled={idx === 0}>↑</Button>
-                        <span className="text-muted-foreground w-6 text-center">{idx + 1}.</span>
-                        <button className="flex-1 text-left truncate hover:underline" onClick={() => setPreviewQ(q)}>
-                          {q.content.slice(0, 50)}...
-                        </button>
-                        <Badge variant="outline" className="text-xs shrink-0">{q.category.name}</Badge>
-                        <Button size="sm" variant="ghost" className="text-destructive h-5 w-5 p-0" onClick={() => toggleQuestion(id)}>✕</Button>
-                      </div>
-                    ) : null
-                  })}
+                <div className="max-h-[50vh] overflow-y-auto border rounded-lg divide-y">
+                  {selectedIds.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-8">左侧点击 + 选题</p>
+                  ) : (
+                    selectedIds.map((id, idx) => {
+                      const q = questionPool.find((x) => x.id === id)
+                      return q ? (
+                        <div key={id} className="flex items-center gap-1.5 p-2 hover:bg-muted/30 text-sm">
+                          <span className="text-muted-foreground w-5 text-center text-xs shrink-0">{idx + 1}</span>
+                          <span className="flex-1 truncate">{q.content.slice(0, 40)}</span>
+                          <Badge variant="outline" className="text-xs shrink-0">{q.category.name}</Badge>
+                          {formOrder === "manual" && (
+                            <div className="flex shrink-0">
+                              <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => moveQuestion(id, 1)} disabled={idx === selectedIds.length - 1}>↓</Button>
+                              <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => moveQuestion(id, -1)} disabled={idx === 0}>↑</Button>
+                            </div>
+                          )}
+                          <Button size="sm" variant="ghost" className="text-destructive h-5 w-5 p-0 shrink-0" onClick={() => toggleQuestion(id)}>✕</Button>
+                        </div>
+                      ) : null
+                    })
+                  )}
                 </div>
-              )}
-
-              <div className="max-h-48 overflow-y-auto border rounded-lg divide-y">
-                {questionPool.filter((q) => !selectedIds.includes(q.id)).map((q) => (
-                  <div key={q.id} className="flex items-center gap-2 p-2 hover:bg-muted/30 text-sm min-w-0">
-                    <Button size="sm" variant="ghost" onClick={() => toggleQuestion(q.id)}>
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                    <span className="flex-1 truncate">{q.content.slice(0, 60)}</span>
-                    <Badge variant="outline" className="text-xs">{q.category.name}</Badge>
-                    <button className="text-xs hover:underline text-muted-foreground" onClick={() => setPreviewQ(q)}>预览</button>
-                  </div>
-                ))}
               </div>
             </div>
           </div>
