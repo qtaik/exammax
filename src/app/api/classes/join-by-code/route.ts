@@ -26,6 +26,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "邀请码已过期" }, { status: 400 })
     }
 
+    if (!invitation.classId) {
+      return NextResponse.json({ error: "此邀请码未关联班级" }, { status: 400 })
+    }
+
     // Check if already a member
     const existing = await prisma.classMember.findUnique({
       where: {

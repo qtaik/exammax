@@ -49,23 +49,35 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const { error, user } = requireAuth(req)
   if (error) return error
-  const roleErr = requireRole(user!, ["ADMIN"])
-  if (roleErr) return roleErr
+  if (!["ADMIN", "TEACHER"].includes(user!.role)) {
+    return NextResponse.json({ error: "无权限" }, { status: 403 })
+  }
 
   try {
     const body = await req.json()
-    const { count, role, expiresAt } = body as {
+    const { count, role, expiresAt, classId } = body as {
       count: number
-      role: Role
+      role?: Role
       expiresAt?: string
+      classId?: string
     }
 
     if (!count || count < 1 || count > 100) {
       return NextResponse.json({ error: "生成数量须在1-100之间" }, { status: 400 })
     }
 
-    if (!role || !["STUDENT", "TEACHER", "ADMIN"].includes(role)) {
-      return NextResponse.json({ error: "无效的角色" }, { status: 400 })
+    const useRole: Role = role || "STUDENT"
+
+    // 教师只能为自己班级生成邀请码
+    if (user!.role === "TEACHER") {
+      if (!classId) {
+        return NextResponse.json({ error: "缺少班级ID" }, { status: 400 })
+      }
+      const cls = await prisma.class.findUnique({ where: { id: classId } })
+      if (!cls) return NextResponse.json({ error: "班级不存在" }, { status: 404 })
+      if (cls.teacherId !== user!.userId) {
+        return NextResponse.json({ error: "无权为此班级生成邀请码" }, { status: 403 })
+      }
     }
 
     const codes: string[] = []
@@ -74,15 +86,21 @@ export async function POST(req: Request) {
       codes.push(code)
     }
 
-    await prisma.invitationCode.createMany({
-      data: codes.map((code) => ({
-        code,
-        role,
-        expiresAt: expiresAt ? new Date(expiresAt) : undefined,
-      })),
-    })
+    const invitations = await Promise.all(
+      codes.map((code) =>
+        prisma.invitationCode.create({
+          data: {
+            code,
+            role: useRole,
+            classId: classId || null,
+            createdById: user!.userId,
+            expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+          },
+        })
+      )
+    )
 
-    return NextResponse.json({ codes })
+    return NextResponse.json({ invitations })
   } catch (err) {
     console.error("Generate invitations error:", err)
     return NextResponse.json({ error: "生成邀请码失败" }, { status: 500 })
