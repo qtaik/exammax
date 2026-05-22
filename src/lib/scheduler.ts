@@ -57,19 +57,12 @@ async function runCleanup() {
 }
 
 export async function schedulerLoop() {
-  console.log("[Scheduler] Cleanup cycle starting...")
   try {
     await runCleanup()
   } catch (err) {
     console.error("[Scheduler] Error:", err)
   }
 
-  // Schedule next run with latest interval setting
-  try {
-    const intervalMs = await getIntervalMs()
-    console.log(`[Scheduler] Next run in ${intervalMs / 1000}s`)
-    setTimeout(schedulerLoop, intervalMs)
-  } catch (err) {
-    console.error("[Scheduler] Failed to schedule next run:", err)
-  }
+  const intervalMs = await getIntervalMs()
+  setTimeout(schedulerLoop, intervalMs)
 }
