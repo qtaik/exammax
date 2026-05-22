@@ -218,7 +218,7 @@ export default function TeacherExamsPage() {
 
       {/* Create Exam Dialog */}
       <Dialog open={createDialog} onOpenChange={setCreateDialog}>
-        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>发布新考试</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <Input placeholder="考试标题" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
