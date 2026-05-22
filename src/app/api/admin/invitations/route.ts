@@ -80,6 +80,16 @@ export async function POST(req: Request) {
       }
     }
 
+    // 班级邀请码：已有未使用的直接返回，不再重复生成
+    if (classId) {
+      const existing = await prisma.invitationCode.findFirst({
+        where: { classId, status: "UNUSED" },
+      })
+      if (existing) {
+        return NextResponse.json({ invitations: [existing] })
+      }
+    }
+
     const prefix = classId ? "exmclass_" : "exam_"
     const codes: string[] = []
     for (let i = 0; i < count; i++) {
