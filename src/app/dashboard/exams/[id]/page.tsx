@@ -58,7 +58,6 @@ export default function StudentExamPage() {
   const [leaveDialog, setLeaveDialog] = useState(false)
   const [leaveUrl, setLeaveUrl] = useState<string | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const [switchStartTime, setSwitchStartTime] = useState<string | null>(null)
   const [maxSwitches, setMaxSwitches] = useState(3)
 
   const qTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -67,7 +66,7 @@ export default function StudentExamPage() {
   const tabSwitchesRef = useRef(0)
   const switchLogRef = useRef<{ time: string; duration: number }[]>([])
   const answersRef = useRef<Record<string, string>>({})
-  const switchStartRef = useRef<string | null>(null)
+  const lastSwitchRef = useRef(0)
   const handleSubmitRef = useRef<() => Promise<void>>(async () => {})
   const perQuestionTimeRef = useRef<Record<string, number>>({})
   const currentIdxRef = useRef(0)
@@ -77,7 +76,6 @@ export default function StudentExamPage() {
   useEffect(() => { tabSwitchesRef.current = tabSwitches }, [tabSwitches])
   useEffect(() => { switchLogRef.current = switchLog }, [switchLog])
   useEffect(() => { answersRef.current = answers }, [answers])
-  useEffect(() => { switchStartRef.current = switchStartTime }, [switchStartTime])
   useEffect(() => { perQuestionTimeRef.current = perQuestionTime }, [perQuestionTime])
   useEffect(() => { currentIdxRef.current = currentIdx }, [currentIdx])
   useEffect(() => { maxSwitchesRef.current = maxSwitches }, [maxSwitches])
@@ -156,21 +154,19 @@ export default function StudentExamPage() {
   useEffect(() => {
     if (!data || data.submission.status !== "PENDING") return
 
-    const recordSwitch = () => {
-      const start = switchStartRef.current
-      if (start) {
-        const duration = Math.floor((Date.now() - new Date(start).getTime()) / 1000)
-        switchLogRef.current = [...switchLogRef.current, { time: start, duration }]
-        setSwitchLog(switchLogRef.current)
-        const newCount = tabSwitchesRef.current + 1
-        tabSwitchesRef.current = newCount
-        setTabSwitches(newCount)
-        switchStartRef.current = null
-        setSwitchStartTime(null)
+    const countSwitch = () => {
+      const now = Date.now()
+      if (now - lastSwitchRef.current < 300) return // debounce same event chain
+      lastSwitchRef.current = now
 
-        if (newCount >= maxSwitchesRef.current) {
-          handleSubmitRef.current()
-        }
+      const newCount = tabSwitchesRef.current + 1
+      tabSwitchesRef.current = newCount
+      setTabSwitches(newCount)
+      switchLogRef.current = [...switchLogRef.current, { time: new Date().toISOString(), duration: 0 }]
+      setSwitchLog(switchLogRef.current)
+
+      if (newCount >= maxSwitchesRef.current) {
+        handleSubmitRef.current()
       }
     }
 
@@ -182,63 +178,38 @@ export default function StudentExamPage() {
       }
     }
 
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        setIsFullscreen(false)
+        countSwitch()
+        reenterFullscreen()
+      } else {
+        setIsFullscreen(true)
+      }
+    }
+
+    const handleBlur = () => { countSwitch() }
+
     const handleVisibility = () => {
       if (document.hidden) {
-        if (!switchStartRef.current) {
-          switchStartRef.current = new Date().toISOString()
-          setSwitchStartTime(switchStartRef.current)
-        }
+        countSwitch()
       } else {
-        if (switchStartRef.current) {
-          recordSwitch()
-        }
         reenterFullscreen()
       }
     }
 
-    const handleBlur = () => {
-      if (!switchStartRef.current) {
-        switchStartRef.current = new Date().toISOString()
-        setSwitchStartTime(switchStartRef.current)
-      }
-    }
+    const handleFocus = () => { reenterFullscreen() }
 
-    const handleFocus = () => {
-      if (switchStartRef.current && !document.hidden) {
-        recordSwitch()
-        reenterFullscreen()
-      }
-    }
-
-    const handleFullscreenChange = () => {
-      if (!document.fullscreenElement && data.submission.status === "PENDING") {
-        setIsFullscreen(false)
-
-        if (!document.hidden) {
-          // Esc key: user is still looking at the page. Not a tab switch.
-          // Cancel any pending switch recording.
-          if (switchStartRef.current) {
-            switchStartRef.current = null
-            setSwitchStartTime(null)
-          }
-          reenterFullscreen()
-        }
-        // If document.hidden (Alt+Tab): browser auto-exited fullscreen.
-        // Don't interfere — blur/visibilitychange handle switch counting.
-        // Fullscreen re-entry happens in handleFocus when user returns.
-      }
-    }
-
+    document.addEventListener("fullscreenchange", handleFullscreenChange)
     document.addEventListener("visibilitychange", handleVisibility)
     window.addEventListener("blur", handleBlur)
     window.addEventListener("focus", handleFocus)
-    document.addEventListener("fullscreenchange", handleFullscreenChange)
 
     return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange)
       document.removeEventListener("visibilitychange", handleVisibility)
       window.removeEventListener("blur", handleBlur)
       window.removeEventListener("focus", handleFocus)
-      document.removeEventListener("fullscreenchange", handleFullscreenChange)
     }
   }, [data])
 
