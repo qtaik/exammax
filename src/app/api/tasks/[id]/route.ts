@@ -74,7 +74,12 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         },
       })
       const records = await prisma.answerRecord.findMany({
-        where: { userId: user!.userId, questionId: { in: questionIds } },
+        where: {
+          userId: user!.userId,
+          questionId: { in: questionIds },
+          createdAt: { gte: submission.createdAt },
+        },
+        orderBy: { createdAt: "desc" },
         select: { questionId: true, userAnswer: true, isCorrect: true, timeSpent: true },
       })
 
