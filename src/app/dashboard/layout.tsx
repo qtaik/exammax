@@ -90,7 +90,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   )
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       <aside className="w-64 border-r bg-muted/30 flex flex-col">
         <div className="p-4 border-b">
           <h1 className="text-xl font-bold">ExamMax</h1>
