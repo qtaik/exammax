@@ -49,6 +49,7 @@ export default function TeacherExamsPage() {
   const [formMaxSwitches, setFormMaxSwitches] = useState("3")
   const [questionPool, setQuestionPool] = useState<Question[]>([])
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [randomCount, setRandomCount] = useState("")
   const [saving, setSaving] = useState(false)
   const [previewQ, setPreviewQ] = useState<Question | null>(null)
 
@@ -80,6 +81,7 @@ export default function TeacherExamsPage() {
     setFormTitle(""); setFormDesc(""); setFormDeadline("")
     setFormOrder("manual"); setFormPerTime(""); setFormMaxSwitches("3")
     setSelectedIds([])
+    setRandomCount("")
     try {
       const res = await fetch("/api/practice?mode=all")
       setQuestionPool((await res.json()).questions || [])
@@ -102,6 +104,16 @@ export default function TeacherExamsPage() {
 
   const handleShuffle = () => {
     setSelectedIds([...selectedIds].sort(() => Math.random() - 0.5))
+  }
+
+  const handleRandomSelect = () => {
+    const count = parseInt(randomCount)
+    if (!count || count < 1 || count > questionPool.length) return
+    const available = questionPool.filter((q) => !selectedIds.includes(q.id))
+    const shuffled = [...available].sort(() => Math.random() - 0.5)
+    const picked = shuffled.slice(0, Math.min(count, available.length))
+    setSelectedIds((prev) => [...prev, ...picked.map((q) => q.id)])
+    setRandomCount("")
   }
 
   const handleCreate = async () => {
@@ -206,7 +218,7 @@ export default function TeacherExamsPage() {
 
       {/* Create Exam Dialog */}
       <Dialog open={createDialog} onOpenChange={setCreateDialog}>
-        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader><DialogTitle>发布新考试</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <Input placeholder="考试标题" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
@@ -239,9 +251,24 @@ export default function TeacherExamsPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-medium">选题（已选 {selectedIds.length} 题）</label>
-                <Button size="sm" variant="outline" onClick={handleShuffle} disabled={selectedIds.length < 2}>
-                  <Shuffle className="h-3 w-3 mr-1" /> 打乱顺序
-                </Button>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    className="w-14 rounded-md border px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="N"
+                    min="1"
+                    max={questionPool.filter((q) => !selectedIds.includes(q.id)).length}
+                    value={randomCount}
+                    onChange={(e) => setRandomCount(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleRandomSelect() }}
+                  />
+                  <Button size="sm" variant="outline" onClick={handleRandomSelect} disabled={!randomCount || parseInt(randomCount) < 1}>
+                    <Shuffle className="h-3 w-3 mr-1" /> 随机选题
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleShuffle} disabled={selectedIds.length < 2}>
+                    <Shuffle className="h-3 w-3 mr-1" /> 打乱顺序
+                  </Button>
+                </div>
               </div>
 
               {formOrder === "manual" && selectedIds.length > 0 && (
@@ -250,7 +277,7 @@ export default function TeacherExamsPage() {
                   {selectedIds.map((id, idx) => {
                     const q = questionPool.find((x) => x.id === id)
                     return q ? (
-                      <div key={id} className="flex items-center gap-2 p-1 rounded bg-muted/50 text-sm">
+                      <div key={id} className="flex items-center gap-2 p-1 rounded bg-muted/50 text-sm min-w-0">
                         <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => moveQuestion(id, 1)} disabled={idx === selectedIds.length - 1}>↓</Button>
                         <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => moveQuestion(id, -1)} disabled={idx === 0}>↑</Button>
                         <span className="text-muted-foreground w-6 text-center">{idx + 1}.</span>
@@ -267,7 +294,7 @@ export default function TeacherExamsPage() {
 
               <div className="max-h-48 overflow-y-auto border rounded-lg divide-y">
                 {questionPool.filter((q) => !selectedIds.includes(q.id)).map((q) => (
-                  <div key={q.id} className="flex items-center gap-2 p-2 hover:bg-muted/30 text-sm">
+                  <div key={q.id} className="flex items-center gap-2 p-2 hover:bg-muted/30 text-sm min-w-0">
                     <Button size="sm" variant="ghost" onClick={() => toggleQuestion(q.id)}>
                       <Plus className="h-3 w-3" />
                     </Button>
