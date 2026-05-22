@@ -388,7 +388,7 @@ export default function AdminAccountCodesPage() {
               <div className="max-h-[300px] overflow-y-auto space-y-1 bg-muted p-3 rounded-md">
                 {generatedCodes.map((code, idx) => (
                   <div key={idx} className="flex items-center gap-2">
-                    <code className="text-xs flex-1">{code}</code>
+                    <code className="text-xs flex-1 break-all">{code}</code>
                     <Button
                       variant="ghost"
                       size="sm"
