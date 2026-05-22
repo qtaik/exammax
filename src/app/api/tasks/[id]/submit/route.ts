@@ -120,7 +120,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         expEarned,
         allCorrect,
         leveledUp,
-        newLevel: leveledUp ? expectedLevel : undefined,
+        newLevel: leveledUp ? newLevel : undefined,
         badgesAwarded,
       },
     })
