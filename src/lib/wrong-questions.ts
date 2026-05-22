@@ -15,9 +15,12 @@ export async function upsertWrongQuestion(
 
     const newCount = existing.errorCount - 1
     if (newCount <= 0) {
+      const totalWrong = await prisma.answerRecord.count({
+        where: { userId, questionId, isCorrect: false },
+      })
       await prisma.wrongQuestion.update({
         where: { userId_questionId: { userId, questionId } },
-        data: { errorCount: 0, status: "COMPLETED", completedAt: new Date() },
+        data: { errorCount: totalWrong, status: "COMPLETED", completedAt: new Date() },
       })
     } else {
       await prisma.wrongQuestion.update({
