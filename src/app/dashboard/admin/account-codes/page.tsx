@@ -329,7 +329,7 @@ export default function AdminAccountCodesPage() {
                               size="sm"
                               onClick={() => {
                                 setExtendOpen(code)
-                                setExtendExpiry(code.expiresAt ? new Date(code.expiresAt).toISOString().slice(0, 16) : "")
+                                setExtendExpiry(code.expiresAt ? (() => { const d = new Date(code.expiresAt); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + 'T' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') })() : "")
                               }}
                             >
                               <Clock className="h-4 w-4 mr-1" />

@@ -33,7 +33,8 @@ export async function PATCH(
           return NextResponse.json({ error: "缺少过期时间" }, { status: 400 })
         }
         const newExpiresAt = new Date(expiresAt)
-        const newStatus = newExpiresAt > new Date() ? "ACTIVE" as const : code.status
+        // REVOKED 码只改时间不改状态，需要用 reinstate 恢复；其他状态直接激活
+        const newStatus = code.status === "REVOKED" ? "REVOKED" : "ACTIVE"
         const updated = await prisma.accountCode.update({
           where: { id: params.id },
           data: { expiresAt: newExpiresAt, status: newStatus },
