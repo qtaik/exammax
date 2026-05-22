@@ -16,6 +16,21 @@ interface SettingItem {
   description: string | null
 }
 
+const TIMEZONE_OPTIONS = [
+  { value: "Asia/Shanghai", label: "UTC+8 中国标准时间" },
+  { value: "Asia/Tokyo", label: "UTC+9 日本标准时间" },
+  { value: "Asia/Seoul", label: "UTC+9 韩国标准时间" },
+  { value: "Asia/Singapore", label: "UTC+8 新加坡时间" },
+  { value: "Asia/Kolkata", label: "UTC+5:30 印度标准时间" },
+  { value: "Europe/London", label: "UTC+0 英国时间" },
+  { value: "Europe/Paris", label: "UTC+1 中欧时间" },
+  { value: "America/New_York", label: "UTC-5 美国东部时间" },
+  { value: "America/Chicago", label: "UTC-6 美国中部时间" },
+  { value: "America/Los_Angeles", label: "UTC-8 美国太平洋时间" },
+  { value: "Pacific/Auckland", label: "UTC+12 新西兰时间" },
+  { value: "Australia/Sydney", label: "UTC+10 悉尼时间" },
+]
+
 const DEFAULT_SETTINGS = [
   {
     key: "answer_retention_days",
@@ -23,6 +38,13 @@ const DEFAULT_SETTINGS = [
     description: "超过此天数的 AnswerRecord 将在自愈时自动清理",
     type: "number",
     defaultValue: "30",
+  },
+  {
+    key: "timezone",
+    label: "系统时区",
+    description: "用于考试截止时间等时间显示的时区",
+    type: "string",
+    defaultValue: "Asia/Shanghai",
   },
 ]
 
@@ -109,7 +131,18 @@ export default function AdminSettingsPage() {
                     min={1}
                   />
                 )}
-                {s.type === "string" && (
+                {s.type === "string" && s.key === "timezone" && (
+                  <select
+                    className="h-10 rounded-md border px-3 py-2 text-sm bg-background"
+                    value={editedValues[s.key] || "Asia/Shanghai"}
+                    onChange={(e) => setEditedValues((prev) => ({ ...prev, [s.key]: e.target.value }))}
+                  >
+                    {TIMEZONE_OPTIONS.map((tz) => (
+                      <option key={tz.value} value={tz.value}>{tz.label}</option>
+                    ))}
+                  </select>
+                )}
+                {s.type === "string" && s.key !== "timezone" && (
                   <Input
                     className="flex-1"
                     value={editedValues[s.key] || ""}
@@ -134,7 +167,7 @@ export default function AdminSettingsPage() {
                   <Save className="h-4 w-4 mr-1" />
                   {saving[s.key] ? "保存中..." : "保存"}
                 </Button>
-                {(saving[s.key] || editedValues[s.key] === s.value) && (
+                {(saving[s.key] || editedValues[s.key] === s.value) && s.type === "number" && (
                   <span className="text-xs text-muted-foreground">天</span>
                 )}
               </div>

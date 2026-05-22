@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { requireAuth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { parseDatetimeInTimezone } from "@/lib/date-utils"
 
 export async function GET(req: Request) {
   const { error, user } = requireAuth(req)
@@ -110,13 +111,17 @@ export async function POST(req: Request) {
       select: { userId: true },
     })
 
+    // 读取管理员配置的时区
+    const tzSetting = await prisma.setting.findUnique({ where: { key: "timezone" } })
+    const timezone = tzSetting?.value || "Asia/Shanghai"
+
     const task = await prisma.task.create({
       data: {
         teacherId: user!.userId,
         classId,
         title: title.trim(),
         description,
-        deadline: new Date(deadline),
+        deadline: parseDatetimeInTimezone(deadline, timezone),
         questionIds,
         questionOrder: questionOrder || "manual",
         perQuestionTime: perQuestionTime || null,

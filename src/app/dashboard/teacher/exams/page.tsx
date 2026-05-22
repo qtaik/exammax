@@ -91,16 +91,36 @@ export default function TeacherExamsPage() {
     setRandomCount("")
     setQuestionSearch("")
     setSelectedCategoryIds([])
+    setQuestionPool([])
     try {
-      const [qRes, catRes] = await Promise.all([
-        fetch("/api/practice?mode=all"),
-        fetch("/api/categories"),
-      ])
-      const [qData, catData] = await Promise.all([qRes.json(), catRes.json()])
-      setQuestionPool(qData.questions || [])
+      const catRes = await fetch("/api/categories")
+      const catData = await catRes.json()
       setCategories(catData.categories || [])
     } catch {}
   }
+
+  // 选分类后加载对应的题目
+  useEffect(() => {
+    if (!createDialog) return
+    if (selectedCategoryIds.length === 0) {
+      setQuestionPool([])
+      return
+    }
+    const fetchQuestions = async () => {
+      try {
+        const res = await fetch(`/api/practice?mode=all&categoryIds=${selectedCategoryIds.join(",")}`)
+        const data = await res.json()
+        const newPool = data.questions || []
+        setQuestionPool(newPool)
+        // 清理已选题目中不在新池子里的
+        setSelectedIds((prev) => {
+          const poolIds = new Set(newPool.map((q: Question) => q.id))
+          return prev.filter((id) => poolIds.has(id))
+        })
+      } catch {}
+    }
+    fetchQuestions()
+  }, [selectedCategoryIds, createDialog])
 
   const toggleQuestion = (id: string) => {
     setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
@@ -299,25 +319,29 @@ export default function TeacherExamsPage() {
                   })}
                 </div>
                 <div className="max-h-[50vh] overflow-y-auto border rounded-lg divide-y">
-                  {questionPool
-                    .filter((q) => !selectedIds.includes(q.id))
-                    .filter((q) => selectedCategoryIds.length === 0 || selectedCategoryIds.includes(q.category.id))
-                    .filter((q) => !questionSearch || q.content.includes(questionSearch) || q.category.name.includes(questionSearch))
-                    .map((q) => (
-                      <div key={q.id} className="flex items-center gap-2 p-2 hover:bg-muted/30 text-sm">
-                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0 shrink-0" onClick={() => toggleQuestion(q.id)}>
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                        <span className="flex-1 truncate">{q.content.slice(0, 40)}</span>
-                        <Badge variant="outline" className="text-xs shrink-0">{q.category.name}</Badge>
-                        <button className="text-xs hover:underline text-muted-foreground shrink-0" onClick={() => setPreviewQ(q)}>预览</button>
-                      </div>
-                    ))}
-                  {questionPool
-                    .filter((q) => !selectedIds.includes(q.id))
-                    .filter((q) => selectedCategoryIds.length === 0 || selectedCategoryIds.includes(q.category.id))
-                    .filter((q) => !questionSearch || q.content.includes(questionSearch)).length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-4">暂无题目</p>
+                  {selectedCategoryIds.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-8">请先选择分类以加载题目</p>
+                  ) : (
+                    <>
+                      {questionPool
+                        .filter((q) => !selectedIds.includes(q.id))
+                        .filter((q) => !questionSearch || q.content.includes(questionSearch) || q.category.name.includes(questionSearch))
+                        .map((q) => (
+                          <div key={q.id} className="flex items-center gap-2 p-2 hover:bg-muted/30 text-sm">
+                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 shrink-0" onClick={() => toggleQuestion(q.id)}>
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                            <span className="flex-1 truncate">{q.content.slice(0, 40)}</span>
+                            <Badge variant="outline" className="text-xs shrink-0">{q.category.name}</Badge>
+                            <button className="text-xs hover:underline text-muted-foreground shrink-0" onClick={() => setPreviewQ(q)}>预览</button>
+                          </div>
+                        ))}
+                      {questionPool
+                        .filter((q) => !selectedIds.includes(q.id))
+                        .filter((q) => !questionSearch || q.content.includes(questionSearch)).length === 0 && (
+                        <p className="text-xs text-muted-foreground text-center py-4">暂无题目</p>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -331,7 +355,7 @@ export default function TeacherExamsPage() {
                     className="w-12 rounded-md border px-1.5 py-0.5 text-xs outline-none focus:ring-2 focus:ring-primary"
                     placeholder="N"
                     min="1"
-                    max={questionPool.filter((q) => !selectedIds.includes(q.id)).filter((q) => selectedCategoryIds.length === 0 || selectedCategoryIds.includes(q.category.id)).length}
+                    max={questionPool.filter((q) => !selectedIds.includes(q.id)).length}
                     value={randomCount}
                     onChange={(e) => setRandomCount(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") handleRandomSelect() }}

@@ -6,10 +6,16 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
     const categoryId = searchParams.get("categoryId")
+    const categoryIds = searchParams.get("categoryIds")
     const mode = searchParams.get("mode") || "default"
     const limit = Math.min(Number(searchParams.get("limit")) || 10, 50)
 
-    const where = categoryId ? { categoryId } : {}
+    let where: any = {}
+    if (categoryId) {
+      where.categoryId = categoryId
+    } else if (categoryIds) {
+      where.categoryId = { in: categoryIds.split(",").filter(Boolean) }
+    }
 
     // 考试模式：返回可用题目总数供前端选择
     if (mode === "exam") {
