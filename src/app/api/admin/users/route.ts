@@ -6,8 +6,9 @@ import { Role } from "@prisma/client"
 export async function GET(req: Request) {
   const { error, user } = requireAuth(req)
   if (error) return error
-  const roleErr = requireRole(user!, ["ADMIN"])
-  if (roleErr) return roleErr
+  if (!["ADMIN", "TEACHER"].includes(user!.role)) {
+    return NextResponse.json({ error: "无权限" }, { status: 403 })
+  }
 
   try {
     const url = new URL(req.url)

@@ -15,6 +15,7 @@ interface User {
 const navItems = [
   { href: "/dashboard", label: "首页", icon: Home, roles: ["STUDENT", "TEACHER", "ADMIN"] },
   { href: "/dashboard/practice", label: "开始刷题", icon: BookOpen, roles: ["STUDENT", "TEACHER", "ADMIN"] },
+  { href: "/dashboard/classes", label: "我的班级", icon: School, roles: ["STUDENT"] },
   { href: "/dashboard/exams", label: "我的考试", icon: FileText, roles: ["STUDENT"] },
   { href: "/dashboard/history", label: "错题回顾", icon: RotateCcw, roles: ["STUDENT", "TEACHER", "ADMIN"] },
   { href: "/dashboard/checkin", label: "签到打卡", icon: CalendarCheck, roles: ["STUDENT", "TEACHER", "ADMIN"] },

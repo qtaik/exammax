@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Users, Plus, Trash2, Copy, Eye, ChevronRight } from "lucide-react"
+import { Users, Plus, Trash2, Copy, Eye, Search } from "lucide-react"
 
 interface ClassItem {
   id: string
@@ -34,8 +34,12 @@ export default function TeacherClassesPage() {
   const [formName, setFormName] = useState("")
   const [formDesc, setFormDesc] = useState("")
   const [members, setMembers] = useState<Member[]>([])
-  const [addUserId, setAddUserId] = useState("")
   const [saving, setSaving] = useState(false)
+  // Student selection dialog
+  const [studentDialog, setStudentDialog] = useState(false)
+  const [studentSearch, setStudentSearch] = useState("")
+  const [studentList, setStudentList] = useState<{ id: string; username: string }[]>([])
+  const [studentLoading, setStudentLoading] = useState(false)
 
   const fetchClasses = useCallback(async () => {
     setLoading(true)
@@ -103,17 +107,38 @@ export default function TeacherClassesPage() {
     } catch {}
   }
 
-  const handleAddMember = async () => {
-    if (!memberDialog || !addUserId.trim()) return
+  const fetchStudents = async (search: string) => {
+    setStudentLoading(true)
+    try {
+      const token = localStorage.getItem("token")
+      const params = new URLSearchParams({ role: "STUDENT", limit: "100" })
+      if (search) params.set("search", search)
+      const res = await fetch(`/api/admin/users?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      setStudentList(data.users || [])
+    } catch {} finally { setStudentLoading(false) }
+  }
+
+  const openStudentDialog = () => {
+    setStudentSearch("")
+    setStudentDialog(true)
+    fetchStudents("")
+  }
+
+  const handleAddMember = async (userId: string) => {
+    if (!memberDialog) return
     try {
       const token = localStorage.getItem("token")
       await fetch(`/api/classes/${memberDialog.id}/members`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ userId: addUserId.trim() }),
+        body: JSON.stringify({ userId }),
       })
-      setAddUserId("")
+      // Refresh members list and remove this student from the selection list
       openMembers(memberDialog)
+      setStudentList((prev) => prev.filter((s) => s.id !== userId))
     } catch {}
   }
 
@@ -219,10 +244,11 @@ export default function TeacherClassesPage() {
       {/* Members Dialog */}
       <Dialog open={!!memberDialog} onOpenChange={() => setMemberDialog(null)}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>{memberDialog?.name} - 成员</DialogTitle></DialogHeader>
-          <div className="flex gap-2 mb-3">
-            <Input placeholder="输入学生用户ID添加" value={addUserId} onChange={(e) => setAddUserId(e.target.value)} />
-            <Button size="sm" onClick={handleAddMember}>添加</Button>
+          <DialogHeader><DialogTitle>{memberDialog?.name} - 成员 ({members.length})</DialogTitle></DialogHeader>
+          <div className="mb-3">
+            <Button size="sm" variant="outline" onClick={openStudentDialog}>
+              <Plus className="h-3 w-3 mr-1" /> 添加学生
+            </Button>
           </div>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {members.length === 0 ? <p className="text-sm text-muted-foreground">暂无成员</p> :
@@ -235,6 +261,49 @@ export default function TeacherClassesPage() {
                 </div>
               ))
             }
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Student Selection Dialog */}
+      <Dialog open={studentDialog} onOpenChange={setStudentDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>选择学生</DialogTitle></DialogHeader>
+          <div className="relative mb-2">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <input
+              className="w-full rounded-md border pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+              placeholder="搜索学生用户名..."
+              value={studentSearch}
+              onChange={(e) => {
+                setStudentSearch(e.target.value)
+                fetchStudents(e.target.value)
+              }}
+            />
+          </div>
+          <div className="space-y-1 max-h-64 overflow-y-auto">
+            {studentLoading ? (
+              <p className="text-sm text-muted-foreground text-center py-4">加载中...</p>
+            ) : studentList.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">未找到学生</p>
+            ) : (
+              studentList.map((s) => {
+                const alreadyMember = members.some((m) => m.user.id === s.id)
+                return (
+                  <div key={s.id} className="flex items-center justify-between p-2 rounded border">
+                    <span className="text-sm">{s.username}</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={alreadyMember}
+                      onClick={() => handleAddMember(s.id)}
+                    >
+                      {alreadyMember ? "已添加" : "添加"}
+                    </Button>
+                  </div>
+                )
+              })
+            )}
           </div>
         </DialogContent>
       </Dialog>
