@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { User, Trophy, Star, Flame, Shield, Check, X } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { User, Trophy, Star, Flame, Shield, Check, Pencil, KeyRound, ArrowUpDown } from "lucide-react"
 
 interface UserInfo {
   id: string
@@ -16,6 +18,7 @@ interface UserInfo {
   level: number
   streakDays: number
   activeTitleId: string | null
+  showBadgeFirst: boolean
 }
 
 interface Achievement {
@@ -45,6 +48,17 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [equipping, setEquipping] = useState<string | null>(null)
 
+  // Edit username
+  const [editingUsername, setEditingUsername] = useState(false)
+  const [newUsername, setNewUsername] = useState("")
+  const [savingUsername, setSavingUsername] = useState(false)
+
+  // Change password
+  const [passwordOpen, setPasswordOpen] = useState(false)
+  const [oldPassword, setOldPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [savingPassword, setSavingPassword] = useState(false)
+
   const getToken = () => localStorage.getItem("token")
 
   const fetchAll = async () => {
@@ -63,6 +77,7 @@ export default function ProfilePage() {
       if (userRes.ok) {
         const data = await userRes.json()
         setUser(data.user)
+        setNewUsername(data.user.username)
       }
       if (achRes.ok) {
         const data = await achRes.json()
@@ -83,6 +98,80 @@ export default function ProfilePage() {
     fetchAll()
   }, [])
 
+  const handleSaveUsername = async () => {
+    if (!newUsername || newUsername.length < 2 || newUsername.length > 20) {
+      alert("用户名须在2-20字符之间")
+      return
+    }
+    setSavingUsername(true)
+    try {
+      const token = getToken()
+      const res = await fetch("/api/user/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ username: newUsername }),
+      })
+      if (res.ok) {
+        setEditingUsername(false)
+        await fetchAll()
+      } else {
+        const data = await res.json()
+        alert(data.error || "修改失败")
+      }
+    } catch {
+      alert("修改失败")
+    } finally {
+      setSavingUsername(false)
+    }
+  }
+
+  const handleChangePassword = async () => {
+    if (!oldPassword || !newPassword) {
+      alert("请填写旧密码和新密码")
+      return
+    }
+    if (newPassword.length < 6) {
+      alert("新密码至少6个字符")
+      return
+    }
+    setSavingPassword(true)
+    try {
+      const token = getToken()
+      const res = await fetch("/api/user/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ oldPassword, newPassword }),
+      })
+      if (res.ok) {
+        alert("密码修改成功")
+        setPasswordOpen(false)
+        setOldPassword("")
+        setNewPassword("")
+      } else {
+        const data = await res.json()
+        alert(data.error || "修改失败")
+      }
+    } catch {
+      alert("修改失败")
+    } finally {
+      setSavingPassword(false)
+    }
+  }
+
+  const handleToggleOrder = async () => {
+    try {
+      const token = getToken()
+      const res = await fetch("/api/user/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ showBadgeFirst: !user?.showBadgeFirst }),
+      })
+      if (res.ok) await fetchAll()
+    } catch {
+      alert("设置失败")
+    }
+  }
+
   const handleEquipBadge = async (badgeId: string) => {
     if (equipping) return
     setEquipping(badgeId)
@@ -90,10 +179,7 @@ export default function ProfilePage() {
       const token = getToken()
       const res = await fetch("/api/profile/equip", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ badgeId }),
       })
       if (res.ok) {
@@ -116,10 +202,7 @@ export default function ProfilePage() {
       const token = getToken()
       const res = await fetch("/api/profile/equip", {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ badgeId }),
       })
       if (res.ok) {
@@ -140,10 +223,7 @@ export default function ProfilePage() {
       const token = getToken()
       const res = await fetch("/api/profile/title", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ itemId }),
       })
       if (res.ok) {
@@ -180,10 +260,41 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <h2 className="text-2xl font-bold flex items-center gap-2">
-        <User className="h-6 w-6" />
-        个人主页
-      </h2>
+      {/* Header: Username + Actions */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <User className="h-6 w-6" />
+            {editingUsername ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  className="w-40"
+                  value={newUsername}
+                  onChange={(e) => setNewUsername(e.target.value)}
+                  maxLength={20}
+                />
+                <Button size="sm" onClick={handleSaveUsername} disabled={savingUsername}>
+                  {savingUsername ? "保存中..." : "保存"}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => { setEditingUsername(false); setNewUsername(user.username) }}>
+                  取消
+                </Button>
+              </div>
+            ) : (
+              <>
+                {user.username}
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setEditingUsername(true)}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+          </h2>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setPasswordOpen(true)}>
+          <KeyRound className="h-4 w-4 mr-2" />
+          修改密码
+        </Button>
+      </div>
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -229,37 +340,42 @@ export default function ProfilePage() {
         </Card>
       </div>
 
-      {/* Preview section */}
+      {/* Equipment Preview + Display Order */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">装备预览</CardTitle>
+          <Button variant="outline" size="sm" onClick={handleToggleOrder}>
+            <ArrowUpDown className="h-4 w-4 mr-1" />
+            {user.showBadgeFirst ? "勋章在前" : "称号在前"}
+          </Button>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">当前称号:</span>
-              {activeTitle ? (
-                <Badge variant="default">{activeTitle.name}</Badge>
-              ) : (
-                <span className="text-sm text-muted-foreground">未设置</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">装备勋章:</span>
-              {equippedCount > 0 ? (
-                <div className="flex gap-1">
-                  {achievements
-                    .filter((a) => a.equipped)
-                    .map((a) => (
-                      <Badge key={a.id} variant="secondary">
-                        {a.icon || a.name}
-                      </Badge>
-                    ))}
-                </div>
-              ) : (
-                <span className="text-sm text-muted-foreground">未装备</span>
-              )}
-            </div>
+            {user.showBadgeFirst ? (
+              <>
+                <Badge variant="outline" className="text-sm">
+                  <Shield className="h-3 w-3 mr-1" />
+                  {achievements.filter((a) => a.equipped)[0]?.icon}{" "}
+                  {achievements.filter((a) => a.equipped)[0]?.name || "未装备勋章"}
+                </Badge>
+                <span className="text-muted-foreground text-sm">→</span>
+                <Badge variant="outline" className="text-sm">
+                  {activeTitle ? `${activeTitle.icon} ${activeTitle.name}` : "未设置称号"}
+                </Badge>
+              </>
+            ) : (
+              <>
+                <Badge variant="outline" className="text-sm">
+                  {activeTitle ? `${activeTitle.icon} ${activeTitle.name}` : "未设置称号"}
+                </Badge>
+                <span className="text-muted-foreground text-sm">→</span>
+                <Badge variant="outline" className="text-sm">
+                  <Shield className="h-3 w-3 mr-1" />
+                  {achievements.filter((a) => a.equipped)[0]?.icon}{" "}
+                  {achievements.filter((a) => a.equipped)[0]?.name || "未装备勋章"}
+                </Badge>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -278,7 +394,7 @@ export default function ProfilePage() {
             </p>
             <Badge variant="outline">
               <Shield className="h-3 w-3 mr-1" />
-              {equippedCount}/5 已装备
+              {equippedCount}/1 已装备
             </Badge>
           </div>
 
@@ -293,6 +409,7 @@ export default function ProfilePage() {
                       : "hover:shadow-md cursor-pointer"
                     : "opacity-50"
                 }`}
+                title={badge.name}
                 onClick={() => {
                   if (!badge.earned) return
                   if (badge.equipped) {
@@ -333,21 +450,15 @@ export default function ProfilePage() {
           </div>
 
           {achievements.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">
-              暂无勋章
-            </div>
+            <div className="text-center py-12 text-muted-foreground">暂无勋章</div>
           )}
         </TabsContent>
 
         <TabsContent value="titles" className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            已购买 {titles.length} 个称号
-          </p>
+          <p className="text-sm text-muted-foreground">已购买 {titles.length} 个称号</p>
 
           {titles.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              暂无称号，请前往积分商店购买
-            </div>
+            <div className="text-center py-12 text-muted-foreground">暂无称号，请前往积分商店购买</div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {titles.map((title) => (
@@ -367,15 +478,11 @@ export default function ProfilePage() {
                         <div className="flex items-center gap-2">
                           <h4 className="font-medium truncate">{title.name}</h4>
                           {title.id === user.activeTitleId && (
-                            <Badge variant="default" className="text-xs">
-                              当前使用
-                            </Badge>
+                            <Badge variant="default" className="text-xs">当前使用</Badge>
                           )}
                         </div>
                         {title.description && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {title.description}
-                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">{title.description}</p>
                         )}
                       </div>
                     </div>
@@ -386,6 +493,29 @@ export default function ProfilePage() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Change Password Dialog */}
+      <Dialog open={passwordOpen} onOpenChange={setPasswordOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>修改密码</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">旧密码</label>
+              <Input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">新密码</label>
+              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="至少6个字符" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setPasswordOpen(false); setOldPassword(""); setNewPassword("") }}>取消</Button>
+            <Button onClick={handleChangePassword} disabled={savingPassword}>{savingPassword ? "修改中..." : "确认修改"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
