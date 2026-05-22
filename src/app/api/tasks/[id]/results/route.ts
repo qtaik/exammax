@@ -48,9 +48,13 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         }
 
         const records = await prisma.answerRecord.findMany({
-          where: { userId: sub.userId, questionId: { in: questionIds } },
+          where: {
+            userId: sub.userId,
+            questionId: { in: questionIds },
+            createdAt: { gte: sub.createdAt },
+          },
           select: { questionId: true, userAnswer: true, isCorrect: true, timeSpent: true },
-          orderBy: { createdAt: "asc" },
+          orderBy: { createdAt: "desc" },
         })
 
         const correctCount = records.filter((r) => r.isCorrect).length
