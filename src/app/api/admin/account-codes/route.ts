@@ -11,12 +11,6 @@ export async function GET(req: Request) {
   if (roleErr) return roleErr
 
   try {
-    // 自动过期：将 status=ACTIVE 且 expiresAt 已过的码标记为 EXPIRED
-    await prisma.accountCode.updateMany({
-      where: { status: "ACTIVE", expiresAt: { lte: new Date() } },
-      data: { status: "EXPIRED" },
-    })
-
     const url = new URL(req.url)
     const page = Math.max(1, parseInt(url.searchParams.get("page") || "1"))
     const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "20")))

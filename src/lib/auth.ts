@@ -49,10 +49,18 @@ export async function requireAuth(req: Request) {
       }
       const code = await prisma.accountCode.findUnique({
         where: { id: payload.accountCodeId },
-        select: { status: true, expiresAt: true },
+        select: { id: true, status: true, expiresAt: true },
       })
-      const expired = code?.expiresAt && code.expiresAt <= new Date()
-      if (!code || code.status === "REVOKED" || expired) {
+      if (!code || code.status === "REVOKED") {
+        return { error: NextResponse.json({ error: "账户已失效，请联系管理员" }, { status: 401 }), user: null }
+      }
+      if (code.expiresAt && code.expiresAt <= new Date()) {
+        if (code.status === "ACTIVE") {
+          await prisma.accountCode.update({
+            where: { id: code.id },
+            data: { status: "EXPIRED" },
+          })
+        }
         return { error: NextResponse.json({ error: "账户已失效，请联系管理员" }, { status: 401 }), user: null }
       }
     }
