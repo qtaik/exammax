@@ -122,10 +122,12 @@ export default function StudentExamPage() {
   // --- Per-question timer ---
   useEffect(() => {
     if (!data || data.submission.status !== "PENDING") return
+    const q = data.task.questions[currentIdx]
+    const accumulated = perQuestionTime[q?.id] || 0
     qStartRef.current = Date.now()
-    setCurrentQTime(0)
+    setCurrentQTime(accumulated)
     qTimerRef.current = setInterval(() => {
-      setCurrentQTime(Math.floor((Date.now() - qStartRef.current) / 1000))
+      setCurrentQTime(accumulated + Math.floor((Date.now() - qStartRef.current) / 1000))
     }, 1000)
     return () => { if (qTimerRef.current) clearInterval(qTimerRef.current) }
   }, [currentIdx, data])
@@ -301,6 +303,7 @@ export default function StudentExamPage() {
   const questions = task.questions || []
   const currentQ = questions[currentIdx]
   const perQTime = task.perQuestionTime
+  const timeExpired = perQTime != null && currentQTime >= perQTime
 
   // --- PENDING: Exam taking view ---
   if (isPending) {
@@ -395,8 +398,11 @@ export default function StudentExamPage() {
                           return (
                             <button
                               key={i}
-                              onClick={() => handleAnswerChange(letter)}
+                              onClick={() => !timeExpired && handleAnswerChange(letter)}
+                              disabled={timeExpired}
                               className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                                timeExpired ? "opacity-50 cursor-not-allowed" : ""
+                              } ${
                                 isSelected
                                   ? "border-primary bg-primary/10 text-primary"
                                   : "border-border hover:bg-muted/50"
@@ -418,6 +424,7 @@ export default function StudentExamPage() {
                             variant={userAnswer === val ? "default" : "outline"}
                             className="flex-1"
                             onClick={() => handleAnswerChange(val)}
+                            disabled={timeExpired}
                           >
                             {val === "T" ? "正确 (T)" : "错误 (F)"}
                           </Button>
@@ -431,16 +438,17 @@ export default function StudentExamPage() {
                         value={userAnswer}
                         onChange={(e) => handleAnswerChange(e.target.value)}
                         placeholder="输入你的答案..."
-                        className="w-full mt-4 p-3 border rounded-lg bg-background text-sm outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full mt-4 p-3 border rounded-lg bg-background text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
                         autoFocus
+                        disabled={timeExpired}
                       />
                     )}
 
-                    {/* Per-question time warning */}
-                    {perQTime && currentQTime >= perQTime && (
-                      <div className="flex items-center gap-2 p-2 rounded bg-destructive/10 text-destructive text-sm">
+                    {/* Per-question time expired — lock */}
+                    {timeExpired && (
+                      <div className="flex items-center gap-2 p-3 rounded bg-destructive/10 text-destructive text-sm">
                         <AlertTriangle className="h-4 w-4" />
-                        本题时间已到，建议进入下一题
+                        本题时间已到，答案已锁定
                       </div>
                     )}
                   </div>
