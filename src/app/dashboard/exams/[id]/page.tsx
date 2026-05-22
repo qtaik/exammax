@@ -68,12 +68,17 @@ export default function StudentExamPage() {
   const switchLogRef = useRef<{ time: string; duration: number }[]>([])
   const answersRef = useRef<Record<string, string>>({})
   const switchStartRef = useRef<string | null>(null)
+  const handleSubmitRef = useRef<() => Promise<void>>(async () => {})
+  const perQuestionTimeRef = useRef<Record<string, number>>({})
+  const currentIdxRef = useRef(0)
 
   // Keep refs in sync
   useEffect(() => { tabSwitchesRef.current = tabSwitches }, [tabSwitches])
   useEffect(() => { switchLogRef.current = switchLog }, [switchLog])
   useEffect(() => { answersRef.current = answers }, [answers])
   useEffect(() => { switchStartRef.current = switchStartTime }, [switchStartTime])
+  useEffect(() => { perQuestionTimeRef.current = perQuestionTime }, [perQuestionTime])
+  useEffect(() => { currentIdxRef.current = currentIdx }, [currentIdx])
 
   // --- Fetch exam ---
   useEffect(() => {
@@ -138,7 +143,7 @@ export default function StudentExamPage() {
     const update = () => {
       const left = Math.max(0, Math.floor((new Date(data.task.deadline).getTime() - Date.now()) / 1000))
       setDeadlineLeft(left)
-      if (left <= 0) handleSubmit()
+      if (left <= 0) handleSubmitRef.current()
     }
     update()
     deadlineRef.current = setInterval(update, 1000)
@@ -282,6 +287,7 @@ export default function StudentExamPage() {
       }
     } catch {} finally { setSubmitting(false) }
   }
+  useEffect(() => { handleSubmitRef.current = handleSubmit })
 
   const unansweredCount = data ? data.task.questions.filter((q) => !answers[q.id]).length : 0
 
