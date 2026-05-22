@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -38,9 +39,14 @@ interface WrongRecord {
 interface LeaderItem {
   id: string
   errorCount: number
+  wrongAnswers: string[]
   question: {
     id: string
+    type: string
     content: string
+    options: string[] | null
+    answer: string
+    explanation: string | null
     category: { name: string }
   }
 }
@@ -84,7 +90,7 @@ export default function WrongQuestionsPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [leaderboard, setLeaderboard] = useState<LeaderItem[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [expandedLeader, setExpandedLeader] = useState<string | null>(null)
+  const [leaderDialog, setLeaderDialog] = useState<LeaderItem | null>(null)
 
   // --- Practice state ---
   const [practiceQuestions, setPracticeQuestions] = useState<PracticeQuestion[]>([])
@@ -519,33 +525,110 @@ export default function WrongQuestionsPage() {
                 <p className="text-sm text-muted-foreground text-center py-8">暂无数据</p>
               ) : (
                 <div className="divide-y">
-                  {leaderboard.map((item, idx) => {
-                    const isExpanded = expandedLeader === item.id
-                    return (
-                      <div key={item.id} className="px-4 py-2.5">
-                        <div
-                          className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded -mx-1 px-1 py-0.5"
-                          onClick={() => setExpandedLeader(isExpanded ? null : item.id)}
-                        >
-                          <span className={`text-xs font-bold w-5 shrink-0 ${
-                            idx < 3 ? "text-destructive" : "text-muted-foreground"
-                          }`}>
-                            #{idx + 1}
-                          </span>
-                          <span className="text-xs truncate flex-1">
-                            {isExpanded ? item.question.content : truncate(item.question.content, 20)}
-                          </span>
-                          <Badge variant="destructive" className="text-xs shrink-0">{item.errorCount}次</Badge>
-                        </div>
+                  {leaderboard.map((item, idx) => (
+                    <div key={item.id} className="px-4 py-2.5">
+                      <div
+                        className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded -mx-1 px-1 py-0.5"
+                        onClick={() => setLeaderDialog(item)}
+                      >
+                        <span className={`text-xs font-bold w-5 shrink-0 ${
+                          idx < 3 ? "text-destructive" : "text-muted-foreground"
+                        }`}>
+                          #{idx + 1}
+                        </span>
+                        <span className="text-xs truncate flex-1">
+                          {truncate(item.question.content, 20)}
+                        </span>
+                        <Badge variant="destructive" className="text-xs shrink-0">{item.errorCount}次</Badge>
                       </div>
-                    )
-                  })}
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* Leaderboard detail dialog */}
+      <Dialog open={!!leaderDialog} onOpenChange={() => setLeaderDialog(null)}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+          {leaderDialog && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Badge variant="outline">{leaderDialog.question.category.name}</Badge>
+                  <Badge>{typeLabels[leaderDialog.question.type]}</Badge>
+                  <Badge variant="destructive">错{leaderDialog.errorCount}次</Badge>
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium mb-1">题目内容</p>
+                  <p className="text-sm whitespace-pre-wrap">{leaderDialog.question.content}</p>
+                </div>
+
+                {leaderDialog.question.options && (
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium mb-1">选项</p>
+                    {(leaderDialog.question.options as string[]).map((opt, i) => (
+                      <p key={i} className="text-sm text-muted-foreground">
+                        {String.fromCharCode(65 + i)}. {opt}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                {leaderDialog.wrongAnswers && (leaderDialog.wrongAnswers as string[]).length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium mb-1">历史错误答案</p>
+                    <div className="flex flex-wrap gap-1">
+                      {(leaderDialog.wrongAnswers as string[]).map((ans, i) => (
+                        <Badge key={i} variant="outline" className="text-xs">
+                          {getOptionLabel(leaderDialog.question, ans)}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground mb-1">正确答案</p>
+                  <p className="text-sm font-medium text-green-600">
+                    {getOptionLabel(leaderDialog.question, leaderDialog.question.answer)}
+                  </p>
+                </div>
+
+                {leaderDialog.question.explanation && (
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-muted-foreground mb-1">解析</p>
+                    <p className="text-sm text-muted-foreground">{leaderDialog.question.explanation}</p>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button
+                  onClick={() => {
+                    const record: WrongRecord = {
+                      id: leaderDialog.id,
+                      errorCount: leaderDialog.errorCount,
+                      status: "ACTIVE",
+                      wrongAnswers: leaderDialog.wrongAnswers || [],
+                      lastAnsweredAt: "",
+                      completedAt: null,
+                      question: leaderDialog.question as QuestionBrief,
+                    }
+                    setLeaderDialog(null)
+                    startPractice(record)
+                  }}
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" /> 重做这道题
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 

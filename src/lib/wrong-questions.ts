@@ -131,10 +131,15 @@ export async function getLeaderboard(
     select: {
       id: true,
       errorCount: true,
+      wrongAnswers: true,
       question: {
         select: {
           id: true,
+          type: true,
           content: true,
+          options: true,
+          answer: true,
+          explanation: true,
           category: { select: { name: true } },
         },
       },
