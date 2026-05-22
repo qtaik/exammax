@@ -66,7 +66,7 @@ model User {
   taughtTasks   Task[]    @relation("TaughtTasks")
   classMembers  ClassMember[] @relation("ClassMemberships")
   teachingClasses Class[] @relation("TeachingClasses")
-  usedInvitation InvitationCode? @relation("UsedInvitation")
+  usedInvitations InvitationCode[] @relation("UsedInvitation")
   createdInvitations InvitationCode[] @relation("CreatedInvitations")
 }
 
@@ -260,7 +260,7 @@ model InvitationCode {
   expiresAt DateTime?
   classId   String?
   createdById String?
-  usedById  String?          @unique
+  usedById  String?
   usedAt    DateTime?
   createdAt DateTime         @default(now())
 

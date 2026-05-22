@@ -43,14 +43,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "你已在该班级中" }, { status: 400 })
     }
 
-    const member = await prisma.classMember.create({
-      data: { classId: invitation.classId, userId: authResult.user!.userId },
-    })
-
-    // Mark invitation as used
+    // Mark invitation as used first — fail-fast to avoid orphan ClassMember
     await prisma.invitationCode.update({
       where: { id: invitation.id },
       data: { status: "USED", usedById: authResult.user!.userId, usedAt: new Date() },
+    })
+
+    const member = await prisma.classMember.create({
+      data: { classId: invitation.classId, userId: authResult.user!.userId },
     })
 
     // Get class name for response
