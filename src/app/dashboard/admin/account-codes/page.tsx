@@ -124,7 +124,7 @@ export default function AdminAccountCodesPage() {
         body: JSON.stringify({
           count,
           role: genRole,
-          expiresAt: genExpiry || undefined,
+          expiresAt: genExpiry ? new Date(genExpiry).toISOString() : undefined,
         }),
       })
       if (!res.ok) {
@@ -211,7 +211,7 @@ export default function AdminAccountCodesPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${getToken()}`,
         },
-        body: JSON.stringify({ action: "extend", expiresAt: extendExpiry }),
+        body: JSON.stringify({ action: "extend", expiresAt: new Date(extendExpiry).toISOString() }),
       })
       if (!res.ok) {
         const data = await res.json()

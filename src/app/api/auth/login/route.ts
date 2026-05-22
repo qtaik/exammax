@@ -66,7 +66,8 @@ export async function POST(req: Request) {
         where: { id: user.accountCodeId },
         select: { status: true, expiresAt: true },
       })
-      if (!accountCode || accountCode.status === "EXPIRED" || accountCode.status === "REVOKED") {
+      const expired = accountCode?.expiresAt && accountCode.expiresAt <= new Date()
+      if (!accountCode || accountCode.status === "REVOKED" || expired) {
         return NextResponse.json(
           { error: "账户已失效，请联系管理员" },
           { status: 401 }
