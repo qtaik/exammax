@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
+import { requireAuth, requireRole } from "@/lib/auth"
 import * as XLSX from "xlsx"
 
 const questionRowSchema = z.object({
@@ -33,6 +34,11 @@ function mapQuestionType(type: string): "CHOICE" | "FILL" | "JUDGE" {
 }
 
 export async function POST(req: Request) {
+  const { error, user } = requireAuth(req)
+  if (error) return error
+  const roleErr = requireRole(user!, ["ADMIN", "TEACHER"])
+  if (roleErr) return roleErr
+
   try {
     const formData = await req.formData()
     const file = formData.get("file") as File

@@ -2,6 +2,6 @@
 
 import QuestionBank from "@/components/QuestionBank"
 
-export default function AdminQuestionsPage() {
+export default function TeacherQuestionsPage() {
   return <QuestionBank />
 }

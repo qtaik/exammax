@@ -28,6 +28,7 @@ const navItems = [
 const adminItems = [
   { href: "/dashboard/teacher/classes", label: "班级管理", icon: School, roles: ["TEACHER", "ADMIN"] },
   { href: "/dashboard/teacher/exams", label: "考试管理", icon: FileText, roles: ["TEACHER", "ADMIN"] },
+  { href: "/dashboard/teacher/questions", label: "题库管理", icon: HelpCircle, roles: ["TEACHER", "ADMIN"] },
   { href: "/dashboard/admin/users", label: "用户管理", icon: Users, roles: ["ADMIN"] },
   { href: "/dashboard/admin/questions", label: "题库管理", icon: HelpCircle, roles: ["ADMIN"] },
   { href: "/dashboard/admin/invitations", label: "邀请码管理", icon: Settings, roles: ["ADMIN"] },

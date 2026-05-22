@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 export async function GET(req: Request) {
   const { error, user } = requireAuth(req)
   if (error) return error
-  const roleErr = requireRole(user!, ["ADMIN"])
+  const roleErr = requireRole(user!, ["ADMIN", "TEACHER"])
   if (roleErr) return roleErr
 
   try {
@@ -26,7 +26,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const { error, user } = requireAuth(req)
   if (error) return error
-  const roleErr = requireRole(user!, ["ADMIN"])
+  const roleErr = requireRole(user!, ["ADMIN", "TEACHER"])
   if (roleErr) return roleErr
 
   try {
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   const { error, user } = requireAuth(req)
   if (error) return error
-  const roleErr = requireRole(user!, ["ADMIN"])
+  const roleErr = requireRole(user!, ["ADMIN", "TEACHER"])
   if (roleErr) return roleErr
 
   try {
@@ -96,7 +96,7 @@ export async function PUT(req: Request) {
 export async function DELETE(req: Request) {
   const { error, user } = requireAuth(req)
   if (error) return error
-  const roleErr = requireRole(user!, ["ADMIN"])
+  const roleErr = requireRole(user!, ["ADMIN", "TEACHER"])
   if (roleErr) return roleErr
 
   try {
