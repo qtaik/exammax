@@ -42,7 +42,19 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         switch (question.type) {
           case "CHOICE": isCorrect = a.userAnswer === question.answer; break
           case "FILL": isCorrect = a.userAnswer.trim().toLowerCase() === question.answer.trim().toLowerCase(); break
-          case "JUDGE": isCorrect = a.userAnswer === question.answer; break
+          case "JUDGE":
+            // Normalize: frontend sends T/F, DB may store 1/0, true/false, 对/错
+            {
+              const trueValues = ["T", "1", "true", "对"]
+              const falseValues = ["F", "0", "false", "错"]
+              const userTrue = trueValues.includes(a.userAnswer)
+              const userFalse = falseValues.includes(a.userAnswer)
+              const answerTrue = trueValues.includes(question.answer)
+              if (userTrue) isCorrect = answerTrue
+              else if (userFalse) isCorrect = !answerTrue
+              else isCorrect = a.userAnswer === question.answer
+            }
+            break
         }
         if (isCorrect) correctCount++
 
