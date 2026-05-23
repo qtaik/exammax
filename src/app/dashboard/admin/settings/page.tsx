@@ -73,7 +73,7 @@ export default function AdminSettingsPage() {
         const found = existing.find((s: SettingItem) => s.key === def.key)
         return found
           ? { ...found, label: found.label || def.label, description: found.description || def.description }
-          : { key: def.key, value: def.defaultValue, type: def.type, label: def.label, description: def.description }
+          : { id: "", key: def.key, value: def.defaultValue, type: def.type, label: def.label, description: def.description }
       })
       setSettings(merged)
       const vals: Record<string, string> = {}
