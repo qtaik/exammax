@@ -10,7 +10,6 @@
 - [核心流水线](#核心流水线)
 - [题库导入](#题库导入)
 - [运维指南](#运维指南)
-- [测试](#测试)
 - [技术栈](#技术栈)
 - [项目结构](#项目结构)
 
@@ -66,25 +65,28 @@ docker compose exec app npx prisma db seed
 
 ## 配置说明
 
-### 环境变量（`.env`）
+### 环境变量
+
+所有变量在 `docker-compose.yml` 中已设默认值，**无需 `.env` 文件即可启动**。
+
+如需自定义，复制模板并按需修改：
 
 ```bash
-# 数据库连接
-DATABASE_URL="mysql://exammax:exammax123@localhost:3306/exammax"
+cp .env.example .env
+```
 
-# NextAuth
+`.env.example` 模板：
+
+```bash
+DATABASE_URL="mysql://exammax:exammax123@localhost:3306/exammax"
 NEXTAUTH_SECRET="your-secret-key-change-in-production"
 NEXTAUTH_URL="http://localhost:3000"
-
-# Redis
 REDIS_HOST="localhost"
 REDIS_PORT="6379"
-
-# JWT（生产环境必须更换为随机 64 位字符串）
 JWT_SECRET="exammax-jwt-secret-key-2026"
 ```
 
-Docker Compose 中这些变量已设默认值，生产环境请通过宿主机的 `.env` 文件覆盖。
+> 生产环境必须更换 `JWT_SECRET`、`NEXTAUTH_SECRET` 和数据库密码。
 
 ### Docker 服务端口
 
