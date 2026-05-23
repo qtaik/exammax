@@ -39,6 +39,7 @@ interface ShopItem {
   price: number
   description: string | null
   icon: string | null
+  limited?: boolean
   purchased: boolean
 }
 

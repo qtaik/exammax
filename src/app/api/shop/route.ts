@@ -17,7 +17,6 @@ export async function GET(req: Request) {
     }
 
     const items = await prisma.shopItem.findMany({
-      where: { limited: false },
       include: {
         users: {
           where: { userId: user!.userId },
@@ -34,6 +33,7 @@ export async function GET(req: Request) {
       price: item.price,
       description: item.description,
       icon: item.icon,
+      limited: item.limited,
       purchased: item.users.length > 0,
     }))
 

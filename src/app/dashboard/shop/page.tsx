@@ -14,6 +14,7 @@ interface ShopItem {
   price: number
   description: string | null
   icon: string | null
+  limited: boolean
   purchased: boolean
 }
 
@@ -169,7 +170,7 @@ export default function ShopPage() {
       )}
 
       {/* Items Grid */}
-      {!shopData?.items || shopData.items.length === 0 ? (
+      {!shopData?.items || shopData.items.filter(i => !i.limited).length === 0 ? (
         <Card>
           <CardContent className="pt-6">
             <div className="text-center py-12 text-muted-foreground">
@@ -180,7 +181,7 @@ export default function ShopPage() {
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {shopData.items.map((item) => {
+          {shopData.items.filter(i => !i.limited).map((item) => {
             const canAfford = (shopData?.userPoints ?? 0) >= item.price
             const canPurchase = !item.purchased && canAfford
 
