@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth"
-import { checkAndAwardBadges } from "@/lib/badge-checker"
 
 export async function POST(req: Request) {
   try {
@@ -73,51 +72,21 @@ export async function POST(req: Request) {
       })
     }
 
-    const allCorrect = correctCount === answers.length && answers.length > 0
-    const pointsEarned = allCorrect ? correctCount * 5 * 2 : correctCount * 5
-    const expEarned = 100 + correctCount * 10
-
-    await Promise.all([
-      prisma.answerRecord.createMany({
-        data: results.map((r) => ({
-          userId: authResult.user!.userId,
-          questionId: r.questionId,
-          userAnswer: r.userAnswer,
-          isCorrect: r.correct,
-          timeSpent: Math.floor(totalTime / answers.length),
-        })),
-      }),
-      prisma.user.update({
-        where: { id: authResult.user!.userId },
-        data: { points: { increment: pointsEarned }, experience: { increment: expEarned } },
-      }),
-      prisma.pointLog.create({
-        data: { userId: authResult.user!.userId, points: pointsEarned, reason: `模拟考试 (${correctCount}/${answers.length})` },
-      }),
-    ])
-
-    // 检查升级
-    const dbUser = await prisma.user.findUnique({ where: { id: authResult.user!.userId }, select: { experience: true, level: true } })
-    if (!dbUser) return NextResponse.json({ error: "用户不存在" }, { status: 404 })
-    const newLevel = Math.floor((1 + Math.sqrt(1 + 8 * dbUser.experience / 100)) / 2)
-    let leveledUp = false
-    if (newLevel > dbUser.level) {
-      await prisma.user.update({ where: { id: authResult.user!.userId }, data: { level: newLevel } })
-      leveledUp = true
-    }
-
-    const badgesAwarded = await checkAndAwardBadges(authResult.user!.userId)
+    // 模拟考试仅记录答题数据，不给积分/经验/升级/徽章（只有老师发布的正式考试才有）
+    await prisma.answerRecord.createMany({
+      data: results.map((r) => ({
+        userId: authResult.user!.userId,
+        questionId: r.questionId,
+        userAnswer: r.userAnswer,
+        isCorrect: r.correct,
+        timeSpent: Math.floor(totalTime / answers.length),
+      })),
+    })
 
     return NextResponse.json({
       total: answers.length,
       correct: correctCount,
       accuracy: Math.round((correctCount / answers.length) * 100),
-      pointsEarned,
-      expEarned,
-      allCorrect,
-      leveledUp,
-      newLevel: leveledUp ? newLevel : undefined,
-      badgesAwarded,
       timeSpent: totalTime,
       results,
     })

@@ -34,8 +34,14 @@ interface SubmitResult {
   correct: boolean
   correctAnswer: string
   explanation: string
-  pointsEarned: number
-  newLevel?: number
+}
+
+interface ExamResultData {
+  total: number
+  correct: number
+  accuracy: number
+  timeSpent: number
+  results: ExamResultItem[]
 }
 
 interface ExamResultItem {
@@ -125,9 +131,7 @@ export default function PracticePage() {
     total: number
     correct: number
     accuracy: number
-    pointsEarned: number
     timeSpent: number
-    newLevel?: number
     results: ExamResultItem[]
   } | null>(null)
 
@@ -321,7 +325,7 @@ export default function PracticePage() {
     }))
 
     try {
-      const data = await api.post<any>("/api/practice/exam", { answers, totalTime })
+      const data = await api.post<ExamResultData>("/api/practice/exam", { answers, totalTime })
       setExamResult(data)
       setPhase("examResult")
     } catch {
