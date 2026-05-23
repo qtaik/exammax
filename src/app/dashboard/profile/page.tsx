@@ -59,6 +59,8 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState("")
   const [savingPassword, setSavingPassword] = useState(false)
 
+  const [badgesDialogOpen, setBadgesDialogOpen] = useState(false)
+
   const getToken = () => localStorage.getItem("token")
 
   const fetchAll = async () => {
@@ -258,6 +260,10 @@ export default function ProfilePage() {
   const titles = shopItems.filter((item) => item.type === "TITLE" && item.purchased)
   const activeTitle = titles.find((t) => t.id === user.activeTitleId)
 
+  const expToNextLevel = user ? 50 * user.level * (user.level + 1) - user.experience : 0
+  const expIntoCurrentLevel = user ? user.experience - 50 * user.level * (user.level - 1) : 0
+  const expNeededForNext = 100 * (user?.level || 1)
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header: Username + Actions */}
@@ -306,6 +312,15 @@ export default function ProfilePage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">Lv.{user.level}</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              距离下一级还需 <span className="font-semibold text-foreground">{expToNextLevel}</span> 经验
+            </p>
+            <div className="mt-1.5 h-1.5 w-full rounded-full bg-secondary">
+              <div
+                className="h-1.5 rounded-full bg-primary transition-all"
+                style={{ width: `${Math.min(100, (expIntoCurrentLevel / expNeededForNext) * 100)}%` }}
+              />
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -392,10 +407,15 @@ export default function ProfilePage() {
             <p className="text-sm text-muted-foreground">
               已获得 {earnedBadges.length} / {achievements.length} 个勋章
             </p>
-            <Badge variant="outline">
-              <Shield className="h-3 w-3 mr-1" />
-              {equippedCount}/1 已装备
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">
+                <Shield className="h-3 w-3 mr-1" />
+                {equippedCount}/1 已装备
+              </Badge>
+              <Button variant="outline" size="sm" onClick={() => setBadgesDialogOpen(true)}>
+                查看全部
+              </Button>
+            </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -514,6 +534,50 @@ export default function ProfilePage() {
             <Button variant="outline" onClick={() => { setPasswordOpen(false); setOldPassword(""); setNewPassword("") }}>取消</Button>
             <Button onClick={handleChangePassword} disabled={savingPassword}>{savingPassword ? "修改中..." : "确认修改"}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* All Badges Dialog */}
+      <Dialog open={badgesDialogOpen} onOpenChange={setBadgesDialogOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>全部勋章 ({earnedBadges.length}/{achievements.length})</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {achievements.map((badge) => (
+              <div
+                key={badge.id}
+                className={`flex items-center gap-4 rounded-lg border p-4 ${
+                  badge.earned
+                    ? badge.equipped
+                      ? "border-primary bg-primary/5"
+                      : ""
+                    : "opacity-50"
+                }`}
+              >
+                <div className="text-2xl shrink-0">{badge.icon || "🏅"}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-medium">{badge.name}</h4>
+                    {badge.equipped && (
+                      <Badge variant="default" className="text-xs">
+                        <Check className="h-3 w-3 mr-1" /> 已装备
+                      </Badge>
+                    )}
+                    {!badge.earned && (
+                      <Badge variant="outline" className="text-xs">未获得</Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">{badge.description}</p>
+                  {badge.earned && badge.earnedAt && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      获得于 {new Date(badge.earnedAt).toLocaleDateString("zh-CN")}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
