@@ -203,17 +203,21 @@ export default function TeacherExamsPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2"><FileText className="h-6 w-6" /> 考试管理</h1>
         </div>
         <div className="flex items-center gap-3">
-          <Select value={selectedClass} onValueChange={setSelectedClass}>
+          <Select value={selectedClass} onValueChange={setSelectedClass} disabled={classes.length === 0}>
             <SelectTrigger className="w-48">
-              <SelectValue placeholder="选择班级" />
+              <SelectValue placeholder={classes.length === 0 ? "当前没有班级" : "选择班级"} />
             </SelectTrigger>
             <SelectContent>
-              {classes.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
+              {classes.length === 0 ? (
+                <SelectItem value="__none__" disabled>当前没有班级</SelectItem>
+              ) : (
+                classes.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
-          <Button onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> 发布考试</Button>
+          <Button onClick={openCreate} disabled={classes.length === 0}><Plus className="h-4 w-4 mr-1" /> 发布考试</Button>
         </div>
       </div>
 
