@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import jwt from "jsonwebtoken"
 import { prisma } from "./prisma"
+import redis from "./redis"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
@@ -9,6 +10,8 @@ export interface AuthPayload {
   username: string
   role: string
   accountCodeId?: string | null
+  exp?: number
+  iat?: number
 }
 
 export function verifyToken(token: string): AuthPayload {
@@ -41,6 +44,12 @@ export async function requireAuth(req: Request) {
   try {
     const token = authHeader.slice(7)
     const payload = verifyToken(token)
+
+    // 检查 token 是否在黑名单中（已登出）
+    const blacklisted = await redis.get(`blacklist:${token}`)
+    if (blacklisted) {
+      return { error: NextResponse.json({ error: "令牌已失效，请重新登录" }, { status: 401 }), user: null }
+    }
 
     // 非 Admin 用户必须有有效账户码
     if (payload.role !== "ADMIN") {

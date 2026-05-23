@@ -72,7 +72,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       .finally(() => setLoading(false))
   }, [router])
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const token = localStorage.getItem("token")
+    if (token) {
+      fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {})
+    }
     localStorage.removeItem("token")
     localStorage.removeItem("user")
     router.push("/login")
