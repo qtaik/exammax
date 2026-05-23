@@ -18,6 +18,7 @@ export async function GET(req: Request) {
         level: true,
         streakDays: true,
         showBadgeFirst: true,
+        activeTitleId: true,
         createdAt: true,
       },
     })
