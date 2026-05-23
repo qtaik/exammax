@@ -133,6 +133,7 @@ export async function DELETE(req: Request) {
       if (qIds.length > 0) {
         await prisma.$transaction([
           prisma.answerRecord.deleteMany({ where: { questionId: { in: qIds } } }),
+          prisma.wrongQuestion.deleteMany({ where: { questionId: { in: qIds } } }),
           prisma.question.deleteMany({ where: { id: { in: qIds } } }),
           prisma.category.deleteMany({ where: { id: { in: ids } } }),
         ])
@@ -176,6 +177,7 @@ export async function DELETE(req: Request) {
     if (questionIds.length > 0) {
       await prisma.$transaction([
         prisma.answerRecord.deleteMany({ where: { questionId: { in: questionIds } } }),
+        prisma.wrongQuestion.deleteMany({ where: { questionId: { in: questionIds } } }),
         prisma.question.deleteMany({ where: { id: { in: questionIds } } }),
         prisma.category.delete({ where: { id } }),
       ])

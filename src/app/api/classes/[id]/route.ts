@@ -51,7 +51,18 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
       return NextResponse.json({ error: "班级有进行中的考试，无法删除" }, { status: 400 })
     }
 
+    // Get all task IDs in this class to clean up submissions
+    const tasks = await prisma.task.findMany({
+      where: { classId: params.id },
+      select: { id: true },
+    })
+    const taskIds = tasks.map((t) => t.id)
+
     await prisma.$transaction([
+      ...(taskIds.length > 0
+        ? [prisma.taskSubmission.deleteMany({ where: { taskId: { in: taskIds } } })]
+        : []),
+      prisma.task.deleteMany({ where: { classId: params.id } }),
       prisma.classMember.deleteMany({ where: { classId: params.id } }),
       prisma.classCode.deleteMany({ where: { classId: params.id } }),
       prisma.class.delete({ where: { id: params.id } }),
