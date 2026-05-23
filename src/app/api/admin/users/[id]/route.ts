@@ -33,6 +33,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 
     if (role !== undefined) {
+      if (targetUser.role === "ADMIN") {
+        return NextResponse.json({ error: "不能修改管理员的角色" }, { status: 400 })
+      }
       if (!["STUDENT", "TEACHER"].includes(role)) {
         return NextResponse.json({ error: "无效的角色" }, { status: 400 })
       }

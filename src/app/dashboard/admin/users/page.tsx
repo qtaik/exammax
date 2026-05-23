@@ -106,7 +106,9 @@ export default function AdminUsersPage() {
   const [badgeMsg, setBadgeMsg] = useState("")
 
   const [userTitles, setUserTitles] = useState<TitleData[]>([])
+  const [allTitles, setAllTitles] = useState<BadgeData[]>([])
   const [activeTitleId, setActiveTitleId] = useState<string | null>(null)
+  const [selectedTitleId, setSelectedTitleId] = useState("")
   const [titleMsg, setTitleMsg] = useState("")
 
   const fetchUsers = useCallback(async () => {
@@ -158,7 +160,9 @@ export default function AdminUsersPage() {
     setSelectedBadgeId("")
     setBadgeMsg("")
     setUserTitles([])
+    setAllTitles([])
     setActiveTitleId(null)
+    setSelectedTitleId("")
     setTitleMsg("")
   }
 
@@ -195,6 +199,7 @@ export default function AdminUsersPage() {
         const data = await res.json()
         setUserTitles(data.userTitles)
         setActiveTitleId(data.activeTitleId)
+        setAllTitles(data.allTitles || [])
       }
     } catch {
       console.error("获取称号失败")
@@ -414,8 +419,50 @@ export default function AdminUsersPage() {
     }
   }
 
+  const handleGrantTitle = async () => {
+    if (!selectedUser || !selectedTitleId) return
+    setTitleMsg("")
+    try {
+      const res = await fetch(`/api/admin/users/${selectedUser.id}/title`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({ titleId: selectedTitleId }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setTitleMsg(data.error || "发放失败")
+        return
+      }
+      setTitleMsg("已发放")
+      setSelectedTitleId("")
+      fetchUserTitles(selectedUser.id)
+    } catch {
+      setTitleMsg("发放失败")
+    }
+  }
+
+  const handleRevokeTitle = async (itemId: string) => {
+    if (!selectedUser) return
+    try {
+      await fetch(`/api/admin/users/${selectedUser.id}/title?itemId=${itemId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+      fetchUserTitles(selectedUser.id)
+    } catch {
+      console.error("收回称号失败")
+    }
+  }
+
   const availableBadges = allBadges.filter(
     (b) => !userBadges.some((ub) => ub.badgeId === b.id)
+  )
+
+  const availableTitles = allTitles.filter(
+    (t) => !userTitles.some((ut) => ut.item.id === t.id)
   )
 
   const formatDate = (dateStr: string) => {
@@ -556,19 +603,28 @@ export default function AdminUsersPage() {
                 </div>
                 <div>
                   <Label>角色</Label>
-                  <div className="flex gap-2 mt-1.5">
-                    <Select value={editRole} onValueChange={setEditRole}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="STUDENT">学生</SelectItem>
-                        <SelectItem value="TEACHER">教师</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button size="sm" onClick={handleUpdateRole}>保存</Button>
-                  </div>
-                  {roleMsg && <p className="text-xs text-muted-foreground mt-1">{roleMsg}</p>}
+                  {selectedUser?.role === "ADMIN" ? (
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <Badge variant="destructive">管理员</Badge>
+                      <span className="text-xs text-muted-foreground">不可修改</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex gap-2 mt-1.5">
+                        <Select value={editRole} onValueChange={setEditRole}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="STUDENT">学生</SelectItem>
+                            <SelectItem value="TEACHER">教师</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" onClick={handleUpdateRole}>保存</Button>
+                      </div>
+                      {roleMsg && <p className="text-xs text-muted-foreground mt-1">{roleMsg}</p>}
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -754,12 +810,37 @@ export default function AdminUsersPage() {
                         {ut.item.id !== activeTitleId && (
                           <span className="ml-0.5 text-[10px] opacity-60">设为当前</span>
                         )}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleRevokeTitle(ut.item.id) }}
+                          className="ml-0.5 rounded-full p-0.5 hover:bg-destructive/20 hover:text-destructive transition-colors"
+                          title="收回"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
                       </span>
                     ))}
                   </div>
                 )}
                 {userTitles.length === 0 && !activeTitleId && (
                   <p className="text-xs text-muted-foreground">暂无称号</p>
+                )}
+                {availableTitles.length > 0 && (
+                  <div>
+                    <Label className="mb-1.5 block">发放称号</Label>
+                    <div className="flex gap-2">
+                      <Select value={selectedTitleId} onValueChange={setSelectedTitleId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="选择称号..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableTitles.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>{t.icon} {t.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button size="sm" onClick={handleGrantTitle} disabled={!selectedTitleId}>发放</Button>
+                    </div>
+                  </div>
                 )}
                 {titleMsg && <p className="text-xs text-muted-foreground mt-1">{titleMsg}</p>}
               </CardContent>
