@@ -19,7 +19,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { Search, ChevronLeft, ChevronRight, Users, X } from "lucide-react"
+import { Search, ChevronLeft, ChevronRight, Users, X, Shield, Coins, Zap, Lock, Award, Crown } from "lucide-react"
 
 interface UserItem {
   id: string
@@ -532,185 +532,238 @@ export default function AdminUsersPage() {
       <Sheet open={drawerOpen} onOpenChange={(open) => { setDrawerOpen(open); if (!open) resetDrawer() }}>
         <SheetContent className="overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>{selectedUser?.username}</SheetTitle>
+            <SheetTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-primary" />
+              {selectedUser?.username}
+            </SheetTitle>
           </SheetHeader>
 
-          <div className="mt-6 space-y-8">
-            <section className="space-y-3">
-              <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">基本信息</h3>
-              <div className="space-y-2">
-                <Label className="text-xs">用户名</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={editUsername}
-                    onChange={(e) => setEditUsername(e.target.value)}
-                  />
-                  <Button size="sm" onClick={handleUpdateUsername}>保存</Button>
+          <div className="mt-6 space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Shield className="h-4 w-4" /> 基本信息
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <Label>用户名</Label>
+                  <div className="flex gap-2 mt-1.5">
+                    <Input value={editUsername} onChange={(e) => setEditUsername(e.target.value)} />
+                    <Button size="sm" onClick={handleUpdateUsername}>保存</Button>
+                  </div>
+                  {userNameMsg && <p className="text-xs text-muted-foreground mt-1">{userNameMsg}</p>}
                 </div>
-                {userNameMsg && <p className="text-xs text-muted-foreground">{userNameMsg}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs">角色</Label>
-                <div className="flex gap-2">
-                  <Select value={editRole} onValueChange={setEditRole}>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="STUDENT">学生</SelectItem>
-                      <SelectItem value="TEACHER">教师</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button size="sm" onClick={handleUpdateRole}>保存</Button>
+                <div>
+                  <Label>角色</Label>
+                  <div className="flex gap-2 mt-1.5">
+                    <Select value={editRole} onValueChange={setEditRole}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="STUDENT">学生</SelectItem>
+                        <SelectItem value="TEACHER">教师</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button size="sm" onClick={handleUpdateRole}>保存</Button>
+                  </div>
+                  {roleMsg && <p className="text-xs text-muted-foreground mt-1">{roleMsg}</p>}
                 </div>
-                {roleMsg && <p className="text-xs text-muted-foreground">{roleMsg}</p>}
-              </div>
-            </section>
+              </CardContent>
+            </Card>
 
-            <section className="space-y-3">
-              <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                积分 <span className="font-normal normal-case text-xs">(当前: {selectedUser?.points})</span>
-              </h3>
-              <div className="flex gap-2">
-                <Select value={pointsMode} onValueChange={setPointsMode}>
-                  <SelectTrigger className="w-[100px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="set">覆盖</SelectItem>
-                    <SelectItem value="add">增减</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="number"
-                  placeholder={pointsMode === "set" ? "目标值" : "+/- 值"}
-                  value={pointsAmount}
-                  onChange={(e) => setPointsAmount(e.target.value)}
-                />
-                <Button size="sm" onClick={handleUpdatePoints}>确认</Button>
-              </div>
-              {pointsMsg && <p className="text-xs text-muted-foreground">{pointsMsg}</p>}
-            </section>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Coins className="h-4 w-4" /> 积分
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">当前: <span className="font-semibold text-foreground">{selectedUser?.points}</span></p>
+                <div>
+                  <Label>调整积分</Label>
+                  <div className="flex gap-2 mt-1.5">
+                    <Select value={pointsMode} onValueChange={setPointsMode}>
+                      <SelectTrigger className="w-[90px] shrink-0">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="set">覆盖</SelectItem>
+                        <SelectItem value="add">增减</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="number"
+                      className="flex-1"
+                      placeholder={pointsMode === "set" ? "目标值" : "+/- 值"}
+                      value={pointsAmount}
+                      onChange={(e) => setPointsAmount(e.target.value)}
+                    />
+                    <Button size="sm" onClick={handleUpdatePoints}>确认</Button>
+                  </div>
+                  {pointsMsg && <p className="text-xs text-muted-foreground mt-1">{pointsMsg}</p>}
+                </div>
+              </CardContent>
+            </Card>
 
-            <section className="space-y-3">
-              <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                经验 <span className="font-normal normal-case text-xs">(当前: {selectedUser?.experience}, Lv.{selectedUser?.level})</span>
-              </h3>
-              <div className="flex gap-2">
-                <Select value={expMode} onValueChange={setExpMode}>
-                  <SelectTrigger className="w-[100px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="set">覆盖</SelectItem>
-                    <SelectItem value="add">增减</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="number"
-                  placeholder={expMode === "set" ? "目标值" : "+/- 值"}
-                  value={expAmount}
-                  onChange={(e) => setExpAmount(e.target.value)}
-                />
-                <Button size="sm" onClick={handleUpdateExperience}>确认</Button>
-              </div>
-              {expMsg && <p className="text-xs text-muted-foreground">{expMsg}</p>}
-            </section>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Zap className="h-4 w-4" /> 经验
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  当前: <span className="font-semibold text-foreground">{selectedUser?.experience}</span>
+                  <span className="mx-1">·</span>
+                  Lv.<span className="font-semibold text-foreground">{selectedUser?.level}</span>
+                </p>
+                <div>
+                  <Label>调整经验</Label>
+                  <div className="flex gap-2 mt-1.5">
+                    <Select value={expMode} onValueChange={setExpMode}>
+                      <SelectTrigger className="w-[90px] shrink-0">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="set">覆盖</SelectItem>
+                        <SelectItem value="add">增减</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="number"
+                      className="flex-1"
+                      placeholder={expMode === "set" ? "目标值" : "+/- 值"}
+                      value={expAmount}
+                      onChange={(e) => setExpAmount(e.target.value)}
+                    />
+                    <Button size="sm" onClick={handleUpdateExperience}>确认</Button>
+                  </div>
+                  {expMsg && <p className="text-xs text-muted-foreground mt-1">{expMsg}</p>}
+                </div>
+              </CardContent>
+            </Card>
 
-            <section className="space-y-3">
-              <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">密码</h3>
-              <div className="flex gap-2">
-                <Input
-                  type="password"
-                  placeholder="新密码 (至少6位)"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                />
-                <Button size="sm" variant="destructive" onClick={handleResetPassword}>重置</Button>
-              </div>
-              {passwordMsg && <p className="text-xs text-muted-foreground">{passwordMsg}</p>}
-            </section>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Lock className="h-4 w-4" /> 密码
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <Label>新密码</Label>
+                  <div className="flex gap-2 mt-1.5">
+                    <Input
+                      type="password"
+                      className="flex-1"
+                      placeholder="至少6位"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                    />
+                    <Button size="sm" variant="destructive" onClick={handleResetPassword}>重置</Button>
+                  </div>
+                  {passwordMsg && <p className="text-xs text-muted-foreground mt-1">{passwordMsg}</p>}
+                </div>
+              </CardContent>
+            </Card>
 
-            <section className="space-y-3">
-              <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">徽章</h3>
-              {userBadges.length === 0 ? (
-                <p className="text-xs text-muted-foreground">暂无徽章</p>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {userBadges.map((ub) => (
-                    <span
-                      key={ub.id}
-                      className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs"
-                    >
-                      {ub.badge.icon} {ub.badge.name}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleRemoveBadge(ub.badgeId) }}
-                        className="ml-0.5 rounded-full hover:bg-destructive/20"
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Award className="h-4 w-4" /> 徽章
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {userBadges.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {userBadges.map((ub) => (
+                      <span
+                        key={ub.id}
+                        className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-xs"
                       >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-              {availableBadges.length > 0 && (
-                <div className="flex gap-2">
-                  <Select value={selectedBadgeId} onValueChange={setSelectedBadgeId}>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="选择徽章..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableBadges.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>{b.icon} {b.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button size="sm" onClick={handleGrantBadge} disabled={!selectedBadgeId}>发放</Button>
-                </div>
-              )}
-              {badgeMsg && <p className="text-xs text-muted-foreground">{badgeMsg}</p>}
-            </section>
-
-            <section className="space-y-3">
-              <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">称号</h3>
-              {activeTitleId && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">当前:</span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium">
-                    {userTitles.find((t) => t.item.id === activeTitleId)?.item.icon}{" "}
-                    {userTitles.find((t) => t.item.id === activeTitleId)?.item.name}
-                  </span>
-                  <Button size="sm" variant="ghost" onClick={handleUnsetTitle}>取消</Button>
-                </div>
-              )}
-              {userTitles.length === 0 ? (
-                <p className="text-xs text-muted-foreground">暂无称号</p>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {userTitles.map((ut) => (
-                    <span
-                      key={ut.id}
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${
-                        ut.item.id === activeTitleId
-                          ? "bg-primary/10 font-medium"
-                          : "bg-secondary"
-                      }`}
-                    >
-                      {ut.item.icon} {ut.item.name}
-                      {ut.item.id !== activeTitleId && (
+                        {ub.badge.icon} {ub.badge.name}
                         <button
-                          onClick={() => handleSetTitle(ut.item.id)}
-                          className="ml-0.5 text-primary hover:underline text-[10px]"
+                          onClick={(e) => { e.stopPropagation(); handleRemoveBadge(ub.badgeId) }}
+                          className="ml-0.5 rounded-full p-0.5 hover:bg-destructive/20 hover:text-destructive transition-colors"
                         >
-                          设
+                          <X className="h-3 w-3" />
                         </button>
-                      )}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {titleMsg && <p className="text-xs text-muted-foreground">{titleMsg}</p>}
-            </section>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {userBadges.length === 0 && (
+                  <p className="text-xs text-muted-foreground">暂无徽章</p>
+                )}
+                {availableBadges.length > 0 && (
+                  <div>
+                    <Label className="mb-1.5 block">发放徽章</Label>
+                    <div className="flex gap-2">
+                      <Select value={selectedBadgeId} onValueChange={setSelectedBadgeId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="选择徽章..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableBadges.map((b) => (
+                            <SelectItem key={b.id} value={b.id}>{b.icon} {b.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button size="sm" onClick={handleGrantBadge} disabled={!selectedBadgeId}>发放</Button>
+                    </div>
+                  </div>
+                )}
+                {badgeMsg && <p className="text-xs text-muted-foreground mt-1">{badgeMsg}</p>}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Crown className="h-4 w-4" /> 称号
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {activeTitleId && (
+                  <div className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-muted-foreground">当前:</span>
+                      <span className="font-medium">
+                        {userTitles.find((t) => t.item.id === activeTitleId)?.item.icon}{" "}
+                        {userTitles.find((t) => t.item.id === activeTitleId)?.item.name}
+                      </span>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={handleUnsetTitle}>取消</Button>
+                  </div>
+                )}
+                {userTitles.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {userTitles.map((ut) => (
+                      <span
+                        key={ut.id}
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs transition-colors ${
+                          ut.item.id === activeTitleId
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-secondary hover:bg-secondary/80 cursor-pointer"
+                        }`}
+                        onClick={() => ut.item.id !== activeTitleId && handleSetTitle(ut.item.id)}
+                      >
+                        {ut.item.icon} {ut.item.name}
+                        {ut.item.id !== activeTitleId && (
+                          <span className="ml-0.5 text-[10px] opacity-60">设为当前</span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {userTitles.length === 0 && !activeTitleId && (
+                  <p className="text-xs text-muted-foreground">暂无称号</p>
+                )}
+                {titleMsg && <p className="text-xs text-muted-foreground mt-1">{titleMsg}</p>}
+              </CardContent>
+            </Card>
           </div>
         </SheetContent>
       </Sheet>
