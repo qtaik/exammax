@@ -60,7 +60,12 @@ export default function ProfilePage() {
   const [savingPassword, setSavingPassword] = useState(false)
 
   const [badgesDialogOpen, setBadgesDialogOpen] = useState(false)
-  const [showBadgeText, setShowBadgeText] = useState(false)
+  const [showBadgeText, setShowBadgeText] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("showBadgeText") === "1"
+    }
+    return false
+  })
 
   const getToken = () => localStorage.getItem("token")
 
@@ -361,7 +366,11 @@ export default function ProfilePage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">装备预览</CardTitle>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setShowBadgeText(!showBadgeText)}>
+            <Button variant="outline" size="sm" onClick={() => {
+              const next = !showBadgeText
+              setShowBadgeText(next)
+              localStorage.setItem("showBadgeText", next ? "1" : "0")
+            }}>
               {showBadgeText ? "显示图标" : "显示文字"}
             </Button>
             <Button variant="outline" size="sm" onClick={handleToggleOrder}>
