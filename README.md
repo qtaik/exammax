@@ -295,18 +295,6 @@ docker compose exec app npx prisma db push  # 更新表结构（如有变更）
 
 ---
 
-## 测试
-
-```bash
-# 运行全部测试（需要 Docker 运行中）
-npm test
-
-# 监听模式
-npm run test:watch
-```
-
-当前覆盖 22 个 API 集成测试：登录/注册/签到/练习/商店/抽奖/错题/成就/排行榜/管理统计。
-
 ---
 
 ## 技术栈
@@ -322,7 +310,7 @@ npm run test:watch
 | 图表 | Recharts 2.12 |
 | 通知 | Sonner (toast) |
 | 定时任务 | Node.js instrumentation hook |
-| 测试 | Vitest 4 |
+| — | — |
 
 ---
 
@@ -363,11 +351,7 @@ exammax/
 ├── prisma/
 │   ├── schema.prisma           # 数据库 Schema
 │   └── seed.ts                 # 种子数据
-├── tests/                      # 集成测试
-│   ├── helpers.ts
-│   └── api/
 ├── docker-compose.yml
 ├── Dockerfile
-├── vitest.config.ts
 └── .env.example
 ```
