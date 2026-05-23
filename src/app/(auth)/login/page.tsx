@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,14 @@ export default function LoginPage() {
   })
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [kickedMsg, setKickedMsg] = useState("")
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("reason") === "kicked") {
+      setKickedMsg("账号已在其他设备登录，请重新登录")
+    }
+  }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -63,6 +71,11 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {kickedMsg && (
+            <div className="p-3 text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-md">
+              {kickedMsg}
+            </div>
+          )}
           {error && (
             <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
               {error}
