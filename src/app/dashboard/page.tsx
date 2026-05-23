@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { BookOpen, Trophy, ShoppingBag, ClipboardList, BarChart3, Users, HelpCircle, Settings, CalendarCheck, Award, User } from "lucide-react"
+import { BookOpen, Trophy, ShoppingBag, RotateCcw, BarChart3, Users, HelpCircle, Settings, CalendarCheck, Award, User, Sparkles, School, FileText, Tag } from "lucide-react"
 
 interface User {
   id: string
@@ -37,19 +37,33 @@ export default function DashboardPage() {
     )
   }
 
-  const featureCards = [
+  const allCards = [
+    // === 所有角色 ===
     { href: "/dashboard/practice", label: "开始刷题", desc: "随机出题，开始练习", icon: BookOpen, roles: ["STUDENT", "TEACHER", "ADMIN"] },
-    { href: "/dashboard/history", label: "答题历史", desc: "查看历史答题记录", icon: ClipboardList, roles: ["STUDENT", "TEACHER", "ADMIN"] },
+    { href: "/dashboard/history", label: "错题回顾", desc: "查看和重做错题，攻克薄弱环节", icon: RotateCcw, roles: ["STUDENT", "TEACHER", "ADMIN"] },
     { href: "/dashboard/checkin", label: "签到打卡", desc: "每日签到获取积分奖励", icon: CalendarCheck, roles: ["STUDENT", "TEACHER", "ADMIN"] },
-    { href: "/dashboard/leaderboard", label: "排行榜", desc: "查看积分排名", icon: Trophy, roles: ["STUDENT", "TEACHER", "ADMIN"] },
-    { href: "/dashboard/achievements", label: "成就勋章", desc: "查看已获得的勋章和成就", icon: Award, roles: ["STUDENT", "TEACHER", "ADMIN"] },
-    { href: "/dashboard/shop", label: "积分商店", desc: "用积分兑换勋章和称号", icon: ShoppingBag, roles: ["STUDENT", "TEACHER", "ADMIN"] },
-    { href: "/dashboard/profile", label: "个人主页", desc: "查看个人信息和装备", icon: User, roles: ["STUDENT", "TEACHER", "ADMIN"] },
+    { href: "/dashboard/leaderboard", label: "排行榜", desc: "查看刷题与考试排名", icon: Trophy, roles: ["STUDENT", "TEACHER", "ADMIN"] },
+    { href: "/dashboard/achievements", label: "成就勋章", desc: "查看已获得的徽章和成就", icon: Award, roles: ["STUDENT", "TEACHER", "ADMIN"] },
+    { href: "/dashboard/shop", label: "积分商店", desc: "用积分兑换个性称号", icon: ShoppingBag, roles: ["STUDENT", "TEACHER", "ADMIN"] },
+    { href: "/dashboard/lottery", label: "积分抽奖", desc: "用积分抽奖赢取限定称号", icon: Sparkles, roles: ["STUDENT", "TEACHER", "ADMIN"] },
+    { href: "/dashboard/profile", label: "个人主页", desc: "查看个人信息和展示装备", icon: User, roles: ["STUDENT", "TEACHER", "ADMIN"] },
+    // === 学生专属 ===
+    { href: "/dashboard/classes", label: "我的班级", desc: "加入班级，参与班级考试", icon: School, roles: ["STUDENT"] },
+    { href: "/dashboard/exams", label: "我的考试", desc: "参加教师发布的正式考试", icon: FileText, roles: ["STUDENT"] },
+    // === 教师专属 ===
+    { href: "/dashboard/teacher/classes", label: "班级管理", desc: "创建和管理班级", icon: School, roles: ["TEACHER"] },
+    { href: "/dashboard/teacher/exams", label: "考试管理", desc: "发布考试、查看成绩", icon: FileText, roles: ["TEACHER"] },
+    { href: "/dashboard/teacher/questions", label: "题库管理", desc: "管理分类和题目", icon: HelpCircle, roles: ["TEACHER"] },
+    // === 管理员专属 ===
     { href: "/dashboard/admin/questions", label: "题库管理", desc: "管理分类和题目", icon: HelpCircle, roles: ["ADMIN"] },
-    { href: "/dashboard/admin/account-codes", label: "账户码管理", desc: "生成和管理账户码", icon: Settings, roles: ["ADMIN"] },
     { href: "/dashboard/admin/users", label: "用户管理", desc: "管理平台用户", icon: Users, roles: ["ADMIN"] },
+    { href: "/dashboard/admin/account-codes", label: "账户码管理", desc: "生成和管理账户码", icon: Settings, roles: ["ADMIN"] },
+    { href: "/dashboard/admin/titles", label: "称号管理", desc: "管理商城和抽奖称号", icon: Tag, roles: ["ADMIN"] },
     { href: "/dashboard/admin/stats", label: "数据统计", desc: "查看平台运营数据", icon: BarChart3, roles: ["ADMIN"] },
-  ].filter((card) => card.roles.includes(user.role))
+    { href: "/dashboard/admin/settings", label: "系统设置", desc: "配置平台运行参数", icon: Settings, roles: ["ADMIN"] },
+  ]
+
+  const featureCards = allCards.filter((card) => card.roles.includes(user.role))
 
   return (
     <div>
