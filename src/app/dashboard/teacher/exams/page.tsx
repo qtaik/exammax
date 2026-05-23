@@ -77,8 +77,13 @@ export default function TeacherExamsPage() {
     fetch("/api/classes", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json()).then((d) => {
         setClasses(d.classes || [])
-        if (d.classes?.length > 0) setSelectedClass(d.classes[0].id)
+        if (d.classes?.length > 0) {
+          setSelectedClass(d.classes[0].id)
+        } else {
+          setLoading(false)
+        }
       })
+      .catch(() => setLoading(false))
   }, [])
 
   useEffect(() => { if (selectedClass) fetchExams() }, [fetchExams])
