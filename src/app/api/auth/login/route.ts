@@ -104,6 +104,11 @@ export async function POST(req: Request) {
       }
     }
 
+    // 单终端登录：自增 session 版本号，旧 token 自动失效
+    const sessionKey = `sessionVersion:${user.id}`
+    const sv = await redis.incr(sessionKey)
+    await redis.expire(sessionKey, tokenExpiresIn + 86400) // 比 JWT 多保留 1 天
+
     // 生成 JWT
     const token = jwt.sign(
       {
@@ -111,6 +116,7 @@ export async function POST(req: Request) {
         username: user.username,
         role: user.role,
         accountCodeId: user.accountCodeId,
+        sv,
       },
       JWT_SECRET,
       { expiresIn: tokenExpiresIn }

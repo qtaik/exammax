@@ -10,6 +10,7 @@ export interface AuthPayload {
   username: string
   role: string
   accountCodeId?: string | null
+  sv?: number
   exp?: number
   iat?: number
 }
@@ -45,10 +46,12 @@ export async function requireAuth(req: Request) {
     const token = authHeader.slice(7)
     const payload = verifyToken(token)
 
-    // 检查 token 是否在黑名单中（已登出）
-    const blacklisted = await redis.get(`blacklist:${token}`)
-    if (blacklisted) {
-      return { error: NextResponse.json({ error: "令牌已失效，请重新登录" }, { status: 401 }), user: null }
+    // 单终端登录校验：token 中的 sv 必须与 Redis 中的一致
+    if (payload.sv !== undefined) {
+      const currentSv = await redis.get(`sessionVersion:${payload.userId}`)
+      if (currentSv && parseInt(currentSv) !== payload.sv) {
+        return { error: NextResponse.json({ error: "账号已在其他设备登录，请重新登录" }, { status: 401 }), user: null }
+      }
     }
 
     // 非 Admin 用户必须有有效账户码
