@@ -47,15 +47,13 @@ export async function requireAuth(req: Request) {
     const payload = verifyToken(token)
 
     // 单终端登录校验：token 中的 sv 必须与 Redis 中的一致
-    if (payload.sv !== undefined) {
-      const currentSv = await redis.get(`sessionVersion:${payload.userId}`)
-      console.log(`[sessionCheck] userId=${payload.userId} tokenSv=${payload.sv} redisSv=${currentSv}`)
-      if (currentSv && parseInt(currentSv) !== payload.sv) {
-        console.log(`[sessionCheck] MISMATCH — kicking user ${payload.userId}`)
-        return { error: NextResponse.json({ error: "账号已在其他设备登录，请重新登录" }, { status: 401 }), user: null }
-      }
-    } else {
-      console.log(`[sessionCheck] userId=${payload.userId} NO sv in token — skipping check`)
+    // 老 token 无 sv 字段视为 0，一旦 Redis 有版本号就被踢
+    const currentSv = await redis.get(`sessionVersion:${payload.userId}`)
+    const tokenSv = payload.sv ?? 0
+    console.log(`[sessionCheck] userId=${payload.userId} tokenSv=${tokenSv} redisSv=${currentSv}`)
+    if (currentSv && parseInt(currentSv) !== tokenSv) {
+      console.log(`[sessionCheck] MISMATCH — kicking user ${payload.userId}`)
+      return { error: NextResponse.json({ error: "账号已在其他设备登录，请重新登录" }, { status: 401 }), user: null }
     }
 
     // 非 Admin 用户必须有有效账户码
