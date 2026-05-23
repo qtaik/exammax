@@ -3,7 +3,7 @@ import { compare } from "bcryptjs"
 import { z } from "zod"
 import jwt from "jsonwebtoken"
 import { prisma } from "@/lib/prisma"
-import { JWT_SECRET_FINAL } from "@/lib/auth"
+import { getJwtSecret } from "@/lib/auth"
 import redis from "@/lib/redis"
 
 const loginSchema = z.object({
@@ -119,7 +119,7 @@ export async function POST(req: Request) {
         accountCodeId: user.accountCodeId,
         sv,
       },
-      JWT_SECRET_FINAL,
+      getJwtSecret(),
       { expiresIn: tokenExpiresIn }
     )
 

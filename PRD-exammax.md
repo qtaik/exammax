@@ -18,6 +18,8 @@ V2.2 引入 **Redis 基础设施升级**：在已有登录限流基础上新增 
 
 V2.3 重构 **数据统计页**：将原有仅 4 张基础卡片 + 近 7 日简易表格的统计页升级为 8 张摘要卡片 + 6 张 recharts 可视化图表（双 Y 轴折线图、面积图、3 个环形图、柱状图、水平条形图）的运营仪表盘。新增 activeUsers、totalClasses、考试状态分布、totalPointsIssued、shopExchanges、lotteryCount、avgWrongPerUser、wrongByCategory TOP10、30 天 dailyStats 等后端指标。前端新增「清理过期记录」按钮，联动系统设置中的 answer_retention_days 参数，支持管理员一键清理超期 AnswerRecord。
 
+V2.4 重设计 **首页落地页**：将浏览器标题和页面 H1 从"ExamMax 刷题平台"改为"ExamMax"，副标题从"通过刷题练习和奖励激励提升学习效果"改为"不刷题的学生不是好卷王"。引入 framer-motion 实现入场 stagger 淡入动画 + 标题持续微呼吸动效，保持极简居中布局，不加功能卖点卡片。
+
 技术栈采用 Next.js 全栈方案（TypeScript + Tailwind CSS + Prisma + MySQL + Redis），通过 Docker Compose 打包实现一键部署。
 
 ---
@@ -43,6 +45,7 @@ V2.3 重构 **数据统计页**：将原有仅 4 张基础卡片 + 近 7 日简�
 - **邀请码体系升级需求（V2.1）：** 原有单表 InvitationCode 混合承载"账户注册码"和"班级加入码"两类职责，字段耦合、逻辑模糊、过期策略混乱。需拆分为 AccountCode（账户准入码）和 ClassCode（班级邀请码）双模型，各司其职，独立管理生命周期
 - **安全升级需求（V2.2）：** 平台缺少登出后 token 失效机制（退出登录后旧 token 仍可用）和单终端登录保护（同一账户可同时在多个设备登录）。引入 Redis 实现 JWT 黑名单和 sessionVersion 版本号校验，前端配合全局 401 拦截，形成"后登录踢前登录"的完整安全链路
 - **数据统计页重构需求（V2.3）：** 当前统计页（`/dashboard/admin/stats`）仅展示 4 张基础卡片（用户/题目/答题/正确率）+ 2 个分布进度条 + 近 7 日简易表格，缺乏可视化图表、缺少关键运营指标（活跃用户、考试状态追踪、积分发放、商店兑换、抽奖次数、错题分类分布），且无 30 天趋势数据。管理员无法从单一页面了解平台全貌，需升级为现代化运营仪表盘
+- **首页重设计需求（V2.4）：** 当前首页（`/`）仅展示标题"ExamMax 刷题平台"、副标题"通过刷题练习和奖励激励提升学习效果"和登录/注册两个按钮，文案平淡无吸引力、无动画效果、缺乏品牌调性。需重新设计文案和视觉动效以匹配 Z 世代学生用户群体的审美
 
 ### 核心理念
 - **核心功能**：选择题刷题框架（xlsx 导入 + 三种刷题模式）
@@ -50,6 +53,7 @@ V2.3 重构 **数据统计页**：将原有仅 4 张基础卡片 + 近 7 日简�
 - **师生交互（V1.6）**：班级管理、教师发布考试、学生防作弊作答、教师成绩统计
 - **用户管理重构（V2.0）**：单管理员唯一、抽屉式操控面板、7条单一职责API
 - **数据统计重构（V2.3）**：8张摘要卡片 + 6张 recharts 图表 + 清理过期记录
+- **首页重设计（V2.4）**：新文案"不刷题的学生不是好卷王"、framer-motion 动画、极简居中布局
 
 ### 约束与假设
 - **约束：** 个人开发，需要快速上线
@@ -76,6 +80,7 @@ V2.3 重构 **数据统计页**：将原有仅 4 张基础卡片 + 近 7 日简�
 7. **升级邀请码体系为账户码+班级码双模型（V2.1）**：AccountCode 管理用户注册准入，ClassCode 管理班级加入邀请，独立模型、独立过期策略、独立 CRUD
 8. **升级安全基础设施（V2.2）**：JWT 登出黑名单（Redis Set），单终端登录（Redis sessionVersion + JWT sv 字段），前端全局 401 拦截 + 30s 心跳检测
 9. **重构数据统计页为运营仪表盘（V2.3）**：8 张摘要卡片覆盖核心运营指标，6 张 recharts 可视化图表（双 Y 轴折线图、面积图、3 个环形图、柱状图、水平条形图），30 天趋势数据，分类错题排行榜，一键清理过期记录联动系统设置
+10. **重设计首页落地页（V2.4）**：更换标题和副标题文案以匹配目标用户群体（Z 世代学生），引入 framer-motion 实现入场 stagger 淡入动画和标题持续微呼吸动效，提升品牌调性和首屏视觉冲击力
 
 ### 明确不做（Non-Goals）
 - 不做学科概念（分类独立，不关联学科）
@@ -1283,6 +1288,57 @@ const statCards = [
 - 在确认对话框中展示当前保留天数
 - 建议：清理操作本身也写入 PointLog 或专门的审计表（`reason: "admin_cleanup_answer_records"`），以便追溯
 
+### 首页重设计模块（V2.4）
+
+#### 重设计目标
+
+当前首页文案平淡（"ExamMax 刷题平台"、"通过刷题练习和奖励激励提升学习效果"），缺乏品牌调性和视觉冲击力，无法在首屏给未登录用户留下印象。V2.4 将聚焦于**文案重构**和**动画效果**两个维度，提升首页质感。
+
+#### 文案变更
+
+| 位置 | 旧文案 | 新文案 |
+|------|--------|--------|
+| 浏览器 `<title>` | ExamMax 刷题平台 | ExamMax |
+| 页面 H1 | ExamMax 刷题平台 | ExamMax |
+| 副标题 `<p>` | 通过刷题练习和奖励激励提升学习效果 | 不刷题的学生不是好卷王 |
+| meta description | 通过刷题练习和奖励激励提升学习效果 | 不刷题的学生不是好卷王 |
+
+#### 动画方案
+
+**技术选型：** framer-motion（需 `npm install framer-motion`）
+
+**入场动画：**
+- 标题从下往上 stagger 依次淡入（`variants` + `initial="hidden"` + `animate="visible"`）
+- 交错延迟：标题 → 副标题（delay 0.15s）→ 按钮组（delay 0.3s）
+- 使用 `spring` 缓动（`type: "spring", stiffness: 100, damping: 15`）
+
+**持续微动：**
+- 标题有微弱的 scale 脉冲（`animate={{ scale: [1, 1.02, 1] }}`，周期 ~3s，`repeat: Infinity`）
+- 按钮 hover 时有弹性缩放效果（`whileHover={{ scale: 1.05 }}` + `whileTap={{ scale: 0.97 }}`）
+
+#### 布局
+
+保持极简居中竖向排列（与现有布局一致），不加功能卖点卡片。用户首次到达首页看到标题动画 → 副标题 → 按钮，三要素干净利落地引导注册/登录。
+
+#### 涉及文件
+
+| 文件 | 改动 |
+|------|------|
+| `src/app/layout.tsx` | 修改 metadata title 和 description |
+| `src/app/page.tsx` | 重写为 framer-motion 动画客户端组件（`"use client"`），替换文案 |
+
+#### 依赖
+
+- `framer-motion` — 前端动画库，需新增 npm 依赖
+- 无后端 API 变更
+
+#### 风险
+
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|------------|
+| framer-motion SSR 报错 | Low | Low | Page 组件为 `"use client"`，layout 中 metadata 为静态导出，无 SSR 风险 |
+| 动画在低端设备卡顿 | Low | Low | framer-motion 使用 GPU 加速的 transform/opacity，性能开销小 |
+
 ---
 
 ### User Stories
@@ -2165,6 +2221,49 @@ Acceptance Criteria:
 - [ ] Given 导出成功, Then Toast 提示"图表已下载"
 ```
 
+#### P1 -- Should Have（首页重设计 V2.4）
+
+**US-53: 首页文案重设计**
+```
+As a 未登录访客,
+I want 在首页看到有吸引力的标题和副标题,
+so that 我对平台产生兴趣并愿意注册。
+
+Acceptance Criteria:
+- [ ] Given 访客访问 /, Then 浏览器标签页标题显示为 "ExamMax"
+- [ ] Given 访客访问 /, Then 页面 H1 显示 "ExamMax"
+- [ ] Given 访客访问 /, Then 副标题显示 "不刷题的学生不是好卷王"
+- [ ] Given 搜索引擎爬虫, Then meta description 为 "不刷题的学生不是好卷王"
+- [ ] Given 旧标题 "ExamMax 刷题平台", Then 不再出现在任何位置
+```
+
+**US-54: 首页入场动画**
+```
+As a 未登录访客,
+I want 首页元素以流畅的动画方式呈现,
+so that 我能感受到平台的品质感和活力。
+
+Acceptance Criteria:
+- [ ] Given 访客访问 /, Then 标题、副标题、按钮依次从下往上淡入（stagger 效果）
+- [ ] Given 页面加载完成, Then 标题有持续的微弱呼吸式 scale 脉冲动画
+- [ ] Given 鼠标悬停按钮, Then 按钮弹性放大（whileHover scale=1.05）
+- [ ] Given 点击按钮, Then 按钮回弹缩小（whileTap scale=0.97）
+- [ ] Given 动画完成, Then 不阻挡用户交互（动画时长 < 1s）
+- [ ] Given 低端设备, Then 动画流畅不卡顿（GPU 加速 transform/opacity）
+```
+
+**US-55: 保持极简布局**
+```
+As a 产品设计者,
+I want 首页保持极简风格不添加功能卖点卡片,
+so that 首屏信息密度低、访客注意力集中在注册/登录转化上。
+
+Acceptance Criteria:
+- [ ] Given 首页, Then 仅包含标题、副标题、登录按钮、注册按钮四个元素
+- [ ] Given 首页, Then 不包含功能卖点卡片、截图、图标等附加内容
+- [ ] Given 首页, Then 所有元素居中竖向排列
+```
+
 ### Non-Functional Requirements
 
 | Category | Requirement | Target |
@@ -2220,6 +2319,7 @@ Acceptance Criteria:
 | 现有 GET /api/admin/settings | 清理过期记录需要读取 answer_retention_days |
 | 现有 WrongQuestion 模型 | 错题分类 TOP10 统计 + 环形图 C 数据源 |
 | 现有 Class / Task / TaskSubmission 模型 | 考试相关统计指标数据源 |
+| framer-motion | V2.4 前端动画库，需新增 npm 依赖 |
 
 ### Risks & Mitigations
 
@@ -2336,6 +2436,14 @@ Acceptance Criteria:
 - **前端依赖：** 新增 recharts 图表库
 - **P1 增强：** 日期范围筛选器（7/14/30天/自定义）、图表导出为 PNG
 
+### V2.4 范围 — 首页重设计
+- **文案变更：** 浏览器 title 和 H1 从"ExamMax 刷题平台"改为"ExamMax"，副标题从"通过刷题练习和奖励激励提升学习效果"改为"不刷题的学生不是好卷王"，meta description 同步
+- **动画引入：** framer-motion（`npm install framer-motion`）
+- **入场动画：** stagger 依次淡入（标题 → 副标题 delay 0.15s → 按钮组 delay 0.3s），spring 缓动
+- **持续微动：** 标题呼吸式 scale 脉冲（1 → 1.02 → 1，周期 ~3s，无限循环），按钮 hover/tap 弹性效果
+- **布局：** 保持极简居中竖向排列，不加功能卖点卡片
+- **涉及文件：** `src/app/layout.tsx`（metadata）、`src/app/page.tsx`（重写为 framer-motion 客户端组件）
+
 ### Success Metrics
 
 | Metric | Target |
@@ -2351,6 +2459,8 @@ Acceptance Criteria:
 | 统计 API 响应时间（V2.3） | < 1.5s（含 30 天 + 10+ 聚合指标） |
 | 图表渲染完成（V2.3） | 6 张图表全部渲染 < 2s |
 | 清理过期记录成功率（V2.3） | 100%（操作正确执行并返回删除条数） |
+| 首页动画流畅度（V2.4） | 入场动画 < 1s，持续动画 60fps，低端设备不掉帧 |
+| 首页文案认可度（V2.4） | 用户反馈"不刷题的学生不是好卷王"引发共鸣（定性评估） |
 
 ---
 
@@ -2359,7 +2469,7 @@ Acceptance Criteria:
 ```
 Docker Compose
 ├── app (Next.js) :3000
-│   ├── 前端：Tailwind CSS + shadcn/ui
+│   ├── 前端：Tailwind CSS + shadcn/ui + framer-motion (V2.4+)
 │   ├── API：Next.js API Routes
 │   ├── 认证：JWT（含 sv sessionVersion 字段）
 │   └── ORM：Prisma
@@ -2487,4 +2597,4 @@ TaskSubmission (任务提交) — V1.6 扩展
 
 ---
 
-*PRD Version: 7.0 | Last Updated: 2026-05-23* | Changes: V2.3 — Added 数据统计页重构: 8 summary cards + 6 recharts charts (dual Y-axis line, area, 3 donut, bar, horizontal bar), 10+ new backend metrics (activeUsers, totalClasses, exam status distribution, totalPointsIssued, shopExchanges, lotteryCount, avgWrongPerUser, wrongByCategory TOP10, 30-day dailyStats), cleanup expired records button linked to answer_retention_days. V2.2 — Added Redis security infrastructure upgrade. V2.1 — Added AccountCode + ClassCode dual-model. V2.0 — Added 用户管理重构模块. Previous: V1.6 师生交互考试模块.*
+*PRD Version: 8.0 | Last Updated: 2026-05-23* | Changes: V2.4 — Added 首页落地页重设计: new title "ExamMax", subtitle "不刷题的学生不是好卷王", framer-motion stagger entrance animation + breathing continuous micro-motion, minimal centered layout. V2.3 — Added 数据统计页重构: 8 summary cards + 6 recharts charts (dual Y-axis line, area, 3 donut, bar, horizontal bar), 10+ new backend metrics (activeUsers, totalClasses, exam status distribution, totalPointsIssued, shopExchanges, lotteryCount, avgWrongPerUser, wrongByCategory TOP10, 30-day dailyStats), cleanup expired records button linked to answer_retention_days. V2.2 — Added Redis security infrastructure upgrade. V2.1 — Added AccountCode + ClassCode dual-model. V2.0 — Added 用户管理重构模块. Previous: V1.6 师生交互考试模块.*

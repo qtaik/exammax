@@ -3,14 +3,17 @@ import jwt from "jsonwebtoken"
 import { prisma } from "./prisma"
 import redis from "./redis"
 
-const JWT_SECRET = process.env.JWT_SECRET
-if (!JWT_SECRET) {
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("JWT_SECRET environment variable is required in production")
+export function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("JWT_SECRET environment variable is required in production")
+    }
+    console.warn("[auth] JWT_SECRET not set — using insecure default (development only)")
+    return "dev-insecure-default-do-not-use-in-prod"
   }
-  console.warn("[auth] JWT_SECRET not set — using insecure default (development only)")
+  return secret
 }
-export const JWT_SECRET_FINAL = JWT_SECRET || "dev-insecure-default-do-not-use-in-prod"
 
 export interface AuthPayload {
   userId: string
@@ -23,7 +26,7 @@ export interface AuthPayload {
 }
 
 export function verifyToken(token: string): AuthPayload {
-  return jwt.verify(token, JWT_SECRET_FINAL) as AuthPayload
+  return jwt.verify(token, getJwtSecret()) as AuthPayload
 }
 
 export async function getAuthUser(req: Request) {
