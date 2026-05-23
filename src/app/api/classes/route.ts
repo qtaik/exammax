@@ -23,6 +23,7 @@ export async function GET(req: Request) {
       classes = await prisma.class.findMany({
         where,
         include: {
+          teacher: { select: { id: true, username: true } },
           _count: { select: { members: true, tasks: true } },
         },
         orderBy: { createdAt: "desc" },

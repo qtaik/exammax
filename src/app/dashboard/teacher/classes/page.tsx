@@ -14,6 +14,7 @@ interface ClassItem {
   name: string
   description: string | null
   createdAt: string
+  teacher?: { id: string; username: string }
   _count: { members: number; tasks: number }
 }
 
@@ -191,6 +192,9 @@ export default function TeacherClassesPage() {
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="font-medium truncate flex-1">{cls.name}</h3>
                 </div>
+                {cls.teacher && (
+                  <p className="text-xs text-muted-foreground mb-2">创建者: {cls.teacher.username}</p>
+                )}
                 {cls.description && <p className="text-sm text-muted-foreground mb-3">{cls.description}</p>}
                 <div className="flex items-center gap-3 mb-3">
                   <Badge variant="secondary"><Users className="h-3 w-3 mr-1" />{cls._count.members}人</Badge>
