@@ -108,6 +108,7 @@ export async function POST(req: Request) {
     const sessionKey = `sessionVersion:${user.id}`
     const sv = await redis.incr(sessionKey)
     await redis.expire(sessionKey, tokenExpiresIn + 86400) // 比 JWT 多保留 1 天
+    console.log(`[login] userId=${user.id} sessionKey=${sessionKey} sv=${sv} tokenExpiresIn=${tokenExpiresIn}`)
 
     // 生成 JWT
     const token = jwt.sign(
