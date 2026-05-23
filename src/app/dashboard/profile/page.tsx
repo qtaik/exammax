@@ -60,6 +60,7 @@ export default function ProfilePage() {
   const [savingPassword, setSavingPassword] = useState(false)
 
   const [badgesDialogOpen, setBadgesDialogOpen] = useState(false)
+  const [showBadgeText, setShowBadgeText] = useState(false)
 
   const getToken = () => localStorage.getItem("token")
 
@@ -359,19 +360,30 @@ export default function ProfilePage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">装备预览</CardTitle>
-          <Button variant="outline" size="sm" onClick={handleToggleOrder}>
-            <ArrowUpDown className="h-4 w-4 mr-1" />
-            {user.showBadgeFirst ? "勋章在前" : "称号在前"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowBadgeText(!showBadgeText)}>
+              {showBadgeText ? "显示图标" : "显示文字"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleToggleOrder}>
+              <ArrowUpDown className="h-4 w-4 mr-1" />
+              {user.showBadgeFirst ? "勋章在前" : "称号在前"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-4 flex-wrap">
             {user.showBadgeFirst ? (
               <>
                 <Badge variant="outline" className="text-sm">
-                  <Shield className="h-3 w-3 mr-1" />
-                  {achievements.filter((a) => a.equipped)[0]?.icon}{" "}
-                  {achievements.filter((a) => a.equipped)[0]?.name || "未装备勋章"}
+                  {showBadgeText ? (
+                    achievements.filter((a) => a.equipped)[0]?.name || "未装备勋章"
+                  ) : (
+                    <>
+                      <Shield className="h-3 w-3 mr-1" />
+                      {achievements.filter((a) => a.equipped)[0]?.icon}{" "}
+                      {achievements.filter((a) => a.equipped)[0]?.name || "未装备勋章"}
+                    </>
+                  )}
                 </Badge>
                 <span className="text-muted-foreground text-sm">→</span>
                 <Badge variant="outline" className="text-sm">
@@ -385,9 +397,15 @@ export default function ProfilePage() {
                 </Badge>
                 <span className="text-muted-foreground text-sm">→</span>
                 <Badge variant="outline" className="text-sm">
-                  <Shield className="h-3 w-3 mr-1" />
-                  {achievements.filter((a) => a.equipped)[0]?.icon}{" "}
-                  {achievements.filter((a) => a.equipped)[0]?.name || "未装备勋章"}
+                  {showBadgeText ? (
+                    achievements.filter((a) => a.equipped)[0]?.name || "未装备勋章"
+                  ) : (
+                    <>
+                      <Shield className="h-3 w-3 mr-1" />
+                      {achievements.filter((a) => a.equipped)[0]?.icon}{" "}
+                      {achievements.filter((a) => a.equipped)[0]?.name || "未装备勋章"}
+                    </>
+                  )}
                 </Badge>
               </>
             )}
