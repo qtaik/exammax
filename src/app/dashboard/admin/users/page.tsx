@@ -20,6 +20,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Search, ChevronLeft, ChevronRight, Users, X, Shield, Coins, Zap, Lock, Award, Crown } from "lucide-react"
+import { api } from "@/lib/api"
 
 interface UserItem {
   id: string
@@ -68,10 +69,6 @@ const roleBadgeVariant: Record<string, "default" | "secondary" | "destructive" |
   STUDENT: "default",
 }
 
-function getToken() {
-  return localStorage.getItem("token")
-}
-
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserItem[]>([])
   const [total, setTotal] = useState(0)
@@ -114,15 +111,14 @@ export default function AdminUsersPage() {
   const fetchUsers = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ page: String(page), limit: "20" })
-      if (search) params.set("search", search)
-      if (roleFilter && roleFilter !== "all") params.set("role", roleFilter)
-
-      const res = await fetch(`/api/admin/users?${params}`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
+      const data = await api.get<{ users: UserItem[]; total: number; totalPages: number }>("/api/admin/users", {
+        params: {
+          page: String(page),
+          limit: "20",
+          search: search || undefined,
+          role: roleFilter !== "all" ? roleFilter : undefined,
+        },
       })
-      if (!res.ok) throw new Error()
-      const data = await res.json()
       setUsers(data.users)
       setTotal(data.total)
       setTotalPages(data.totalPages)
@@ -177,14 +173,9 @@ export default function AdminUsersPage() {
 
   const fetchUserBadges = async (userId: string) => {
     try {
-      const res = await fetch(`/api/admin/users/${userId}/badges`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setUserBadges(data.userBadges)
-        setAllBadges(data.allBadges)
-      }
+      const data = await api.get<{ userBadges: UserBadgeData[]; allBadges: BadgeData[] }>(`/api/admin/users/${userId}/badges`)
+      setUserBadges(data.userBadges)
+      setAllBadges(data.allBadges)
     } catch {
       console.error("获取徽章失败")
     }
@@ -192,15 +183,10 @@ export default function AdminUsersPage() {
 
   const fetchUserTitles = async (userId: string) => {
     try {
-      const res = await fetch(`/api/admin/users/${userId}/title`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setUserTitles(data.userTitles)
-        setActiveTitleId(data.activeTitleId)
-        setAllTitles(data.allTitles || [])
-      }
+      const data = await api.get<{ userTitles: TitleData[]; activeTitleId: string | null; allTitles: BadgeData[] }>(`/api/admin/users/${userId}/title`)
+      setUserTitles(data.userTitles)
+      setActiveTitleId(data.activeTitleId)
+      setAllTitles(data.allTitles || [])
     } catch {
       console.error("获取称号失败")
     }
@@ -210,23 +196,11 @@ export default function AdminUsersPage() {
     if (!selectedUser) return
     setUserNameMsg("")
     try {
-      const res = await fetch(`/api/admin/users/${selectedUser.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({ username: editUsername }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setUserNameMsg(data.error || "更新失败")
-        return
-      }
+      await api.patch(`/api/admin/users/${selectedUser.id}`, { username: editUsername })
       setUserNameMsg("已保存")
       fetchUsers()
-    } catch {
-      setUserNameMsg("更新失败")
+    } catch (e: any) {
+      setUserNameMsg(e.message || "更新失败")
     }
   }
 
@@ -234,23 +208,11 @@ export default function AdminUsersPage() {
     if (!selectedUser) return
     setRoleMsg("")
     try {
-      const res = await fetch(`/api/admin/users/${selectedUser.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({ role: editRole }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setRoleMsg(data.error || "更新失败")
-        return
-      }
+      await api.patch(`/api/admin/users/${selectedUser.id}`, { role: editRole })
       setRoleMsg("已保存")
       fetchUsers()
-    } catch {
-      setRoleMsg("更新失败")
+    } catch (e: any) {
+      setRoleMsg(e.message || "更新失败")
     }
   }
 
@@ -263,24 +225,12 @@ export default function AdminUsersPage() {
       return
     }
     try {
-      const res = await fetch(`/api/admin/users/${selectedUser.id}/points`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({ mode: pointsMode, amount }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setPointsMsg(data.error || "更新失败")
-        return
-      }
+      const data = await api.patch<{ points: number }>(`/api/admin/users/${selectedUser.id}/points`, { mode: pointsMode, amount })
       setPointsMsg(`已更新 (当前: ${data.points})`)
       setPointsAmount("")
       fetchUsers()
-    } catch {
-      setPointsMsg("更新失败")
+    } catch (e: any) {
+      setPointsMsg(e.message || "更新失败")
     }
   }
 
@@ -293,24 +243,12 @@ export default function AdminUsersPage() {
       return
     }
     try {
-      const res = await fetch(`/api/admin/users/${selectedUser.id}/experience`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({ mode: expMode, amount }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setExpMsg(data.error || "更新失败")
-        return
-      }
+      const data = await api.patch<{ experience: number; level: number }>(`/api/admin/users/${selectedUser.id}/experience`, { mode: expMode, amount })
       setExpMsg(`已更新 (当前: ${data.experience}, Lv.${data.level})`)
       setExpAmount("")
       fetchUsers()
-    } catch {
-      setExpMsg("更新失败")
+    } catch (e: any) {
+      setExpMsg(e.message || "更新失败")
     }
   }
 
@@ -322,23 +260,11 @@ export default function AdminUsersPage() {
       return
     }
     try {
-      const res = await fetch(`/api/admin/users/${selectedUser.id}/password`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({ password: newPassword }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setPasswordMsg(data.error || "重置失败")
-        return
-      }
+      await api.put(`/api/admin/users/${selectedUser.id}/password`, { password: newPassword })
       setPasswordMsg("密码已重置")
       setNewPassword("")
-    } catch {
-      setPasswordMsg("重置失败")
+    } catch (e: any) {
+      setPasswordMsg(e.message || "重置失败")
     }
   }
 
@@ -346,33 +272,20 @@ export default function AdminUsersPage() {
     if (!selectedUser || !selectedBadgeId) return
     setBadgeMsg("")
     try {
-      const res = await fetch(`/api/admin/users/${selectedUser.id}/badges`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({ badgeId: selectedBadgeId }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setBadgeMsg(data.error || "发放失败")
-        return
-      }
+      await api.post(`/api/admin/users/${selectedUser.id}/badges`, { badgeId: selectedBadgeId })
       setBadgeMsg("已发放")
       setSelectedBadgeId("")
       fetchUserBadges(selectedUser.id)
-    } catch {
-      setBadgeMsg("发放失败")
+    } catch (e: any) {
+      setBadgeMsg(e.message || "发放失败")
     }
   }
 
   const handleRemoveBadge = async (badgeId: string) => {
     if (!selectedUser) return
     try {
-      await fetch(`/api/admin/users/${selectedUser.id}/badges?badgeId=${badgeId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${getToken()}` },
+      await api.delete(`/api/admin/users/${selectedUser.id}/badges`, {
+        params: { badgeId },
       })
       fetchUserBadges(selectedUser.id)
     } catch {
@@ -384,23 +297,11 @@ export default function AdminUsersPage() {
     if (!selectedUser) return
     setTitleMsg("")
     try {
-      const res = await fetch(`/api/admin/users/${selectedUser.id}/title`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({ titleId }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setTitleMsg(data.error || "设置失败")
-        return
-      }
+      await api.put(`/api/admin/users/${selectedUser.id}/title`, { titleId })
       setTitleMsg("已设置")
       fetchUserTitles(selectedUser.id)
-    } catch {
-      setTitleMsg("设置失败")
+    } catch (e: any) {
+      setTitleMsg(e.message || "设置失败")
     }
   }
 
@@ -408,14 +309,11 @@ export default function AdminUsersPage() {
     if (!selectedUser) return
     setTitleMsg("")
     try {
-      await fetch(`/api/admin/users/${selectedUser.id}/title`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${getToken()}` },
-      })
+      await api.delete(`/api/admin/users/${selectedUser.id}/title`)
       setTitleMsg("已取消")
       fetchUserTitles(selectedUser.id)
-    } catch {
-      setTitleMsg("取消失败")
+    } catch (e: any) {
+      setTitleMsg(e.message || "取消失败")
     }
   }
 
@@ -423,33 +321,20 @@ export default function AdminUsersPage() {
     if (!selectedUser || !selectedTitleId) return
     setTitleMsg("")
     try {
-      const res = await fetch(`/api/admin/users/${selectedUser.id}/title`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({ titleId: selectedTitleId }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setTitleMsg(data.error || "发放失败")
-        return
-      }
+      await api.post(`/api/admin/users/${selectedUser.id}/title`, { titleId: selectedTitleId })
       setTitleMsg("已发放")
       setSelectedTitleId("")
       fetchUserTitles(selectedUser.id)
-    } catch {
-      setTitleMsg("发放失败")
+    } catch (e: any) {
+      setTitleMsg(e.message || "发放失败")
     }
   }
 
   const handleRevokeTitle = async (itemId: string) => {
     if (!selectedUser) return
     try {
-      await fetch(`/api/admin/users/${selectedUser.id}/title?itemId=${itemId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${getToken()}` },
+      await api.delete(`/api/admin/users/${selectedUser.id}/title`, {
+        params: { itemId },
       })
       fetchUserTitles(selectedUser.id)
     } catch {

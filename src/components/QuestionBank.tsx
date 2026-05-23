@@ -15,6 +15,7 @@ import {
   Search, ChevronLeft, ChevronRight, HelpCircle, Plus, Pencil, Trash2,
   Upload, FolderOpen, CheckSquare, Square,
 } from "lucide-react"
+import { api } from "@/lib/api"
 
 interface CategoryItem {
   id: string; name: string; description: string | null; _count?: { questions: number }
@@ -75,15 +76,9 @@ export default function QuestionBank() {
     message: string; total: number; success: number; failed: number; errors: string[]
   } | null>(null)
 
-  const getToken = () => localStorage.getItem("token")
-
   const fetchCategories = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/categories", {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      })
-      if (!res.ok) throw new Error()
-      const data = await res.json()
+      const data = await api.get<{ categories: CategoryItem[] }>("/api/admin/categories")
       setCategories(data.categories)
     } catch {}
   }, [])
@@ -91,15 +86,11 @@ export default function QuestionBank() {
   const fetchQuestions = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ page: String(page), limit: "20" })
-      if (search) params.set("search", search)
-      if (typeFilter !== "all") params.set("type", typeFilter)
-      if (categoryFilter !== "all") params.set("categoryId", categoryFilter)
-      const res = await fetch(`/api/admin/questions?${params}`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      })
-      if (!res.ok) throw new Error()
-      const data = await res.json()
+      const params: Record<string, string> = { page: String(page), limit: "20" }
+      if (search) params.search = search
+      if (typeFilter !== "all") params.type = typeFilter
+      if (categoryFilter !== "all") params.categoryId = categoryFilter
+      const data = await api.get<{ questions: QuestionItem[]; total: number; totalPages: number }>("/api/admin/questions", { params })
       setQuestions(data.questions)
       setTotal(data.total)
       setTotalPages(data.totalPages)
@@ -114,24 +105,21 @@ export default function QuestionBank() {
     setSelectedQ((prev) => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
   }
 
-  const buildFilterParams = () => {
-    const params = new URLSearchParams()
-    if (search) params.set("search", search)
-    if (typeFilter !== "all") params.set("type", typeFilter)
-    if (categoryFilter !== "all") params.set("categoryId", categoryFilter)
-    return params.toString()
+  const buildFilterParams = (): Record<string, string> => {
+    const p: Record<string, string> = {}
+    if (search) p.search = search
+    if (typeFilter !== "all") p.type = typeFilter
+    if (categoryFilter !== "all") p.categoryId = categoryFilter
+    return p
   }
 
   const toggleSelectAllQ = async () => {
     if (selectAll) { setSelectAll(false); setSelectedQ(new Set()); return }
     setSelectedQ(new Set(questions.map((q) => q.id)))
     try {
-      const filterStr = buildFilterParams()
-      const res = await fetch(`/api/admin/questions?mode=ids&${filterStr}`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
+      const data = await api.get<{ ids: string[] }>("/api/admin/questions", {
+        params: { mode: "ids", ...buildFilterParams() },
       })
-      if (!res.ok) throw new Error()
-      const data = await res.json()
       setSelectedQ(new Set(data.ids))
       setSelectAll(true)
     } catch {}
@@ -174,58 +162,44 @@ export default function QuestionBank() {
     if (formType === "CHOICE") body.options = formOptions.filter((o) => o.trim())
     if (editId) body.id = editId
     try {
-      const res = await fetch("/api/admin/questions", {
-        method: editId ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify(body),
-      })
-      if (!res.ok) { const d = await res.json(); alert(d.error || "保存失败"); return }
+      if (editId) {
+        await api.put("/api/admin/questions", body)
+      } else {
+        await api.post("/api/admin/questions", body)
+      }
       setFormOpen(false); fetchQuestions(); fetchCategories()
-    } catch { alert("保存失败") }
+    } catch (e: any) { alert(e.message || "保存失败") }
   }
 
   const handleDelete = async () => {
     if (!deleteId) return
     try {
-      const res = await fetch(`/api/admin/questions?id=${deleteId}`, {
-        method: "DELETE", headers: { Authorization: `Bearer ${getToken()}` },
-      })
-      if (!res.ok) { const d = await res.json(); alert(d.error || "删除失败"); return }
+      await api.delete("/api/admin/questions", { params: { id: deleteId } })
       setDeleteDialog(false); setDeleteId(null); fetchQuestions(); fetchCategories()
-    } catch { alert("删除失败") }
+    } catch (e: any) { alert(e.message || "删除失败") }
   }
 
   const handleBatchDelete = async () => {
     if (batchDeleteTarget === "questions") {
       if (selectedQ.size === 0) return
       try {
-        let url: string
         if (selectAll) {
-          const filterStr = buildFilterParams()
-          url = `/api/admin/questions?mode=filter&${filterStr}`
+          await api.delete("/api/admin/questions", { params: { mode: "filter", ...buildFilterParams() } })
         } else {
-          url = `/api/admin/questions?ids=${Array.from(selectedQ).join(",")}`
+          await api.delete("/api/admin/questions", { params: { ids: Array.from(selectedQ).join(",") } })
         }
-        const res = await fetch(url, {
-          method: "DELETE", headers: { Authorization: `Bearer ${getToken()}` },
-        })
-        if (!res.ok) { const d = await res.json(); alert(d.error || "删除失败"); return }
         setSelectAll(false); setSelectedQ(new Set()); setBatchDeleteDialog(false); fetchQuestions(); fetchCategories()
-      } catch { alert("删除失败") }
+      } catch (e: any) { alert(e.message || "删除失败") }
     } else {
       const ids = Array.from(selectedC)
       if (ids.length === 0) return
       try {
-        const res = await fetch(`/api/admin/categories?ids=${ids.join(",")}`, {
-          method: "DELETE", headers: { Authorization: `Bearer ${getToken()}` },
-        })
-        const d = await res.json()
-        if (!res.ok) { alert(d.error || "删除失败"); return }
-        if (d.deletedQuestions > 0) {
+        const d = await api.delete<{ deleted?: number; deletedQuestions?: number }>("/api/admin/categories", { params: { ids: ids.join(",") } })
+        if (d.deletedQuestions && d.deletedQuestions > 0) {
           alert(`已删除 ${d.deleted} 个分类及 ${d.deletedQuestions} 道题目`)
         }
         setSelectedC(new Set()); setBatchDeleteDialog(false); fetchCategories(); fetchQuestions()
-      } catch { alert("删除失败") }
+      } catch (e: any) { alert(e.message || "删除失败") }
     }
   }
 
@@ -235,26 +209,21 @@ export default function QuestionBank() {
   const handleCatSave = async () => {
     if (!catName.trim()) { alert("分类名称不能为空"); return }
     try {
-      const res = await fetch("/api/admin/categories", {
-        method: catEditId ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({ id: catEditId, name: catName.trim(), description: catDesc.trim() || undefined }),
-      })
-      if (!res.ok) { const d = await res.json(); alert(d.error || "保存失败"); return }
+      if (catEditId) {
+        await api.put("/api/admin/categories", { id: catEditId, name: catName.trim(), description: catDesc.trim() || undefined })
+      } else {
+        await api.post("/api/admin/categories", { name: catName.trim(), description: catDesc.trim() || undefined })
+      }
       setCatFormOpen(false); fetchCategories()
-    } catch { alert("保存失败") }
+    } catch (e: any) { alert(e.message || "保存失败") }
   }
 
   const handleCatDelete = async (id: string) => {
     try {
-      const res = await fetch(`/api/admin/categories?id=${id}`, {
-        method: "DELETE", headers: { Authorization: `Bearer ${getToken()}` },
-      })
-      const d = await res.json()
-      if (!res.ok) { alert(d.error || "删除失败"); return }
-      if (d.deletedQuestions > 0) { alert(`分类已删除，同时删除了 ${d.deletedQuestions} 道题目`) }
+      const d = await api.delete<{ deletedQuestions?: number }>("/api/admin/categories", { params: { id } })
+      if (d.deletedQuestions && d.deletedQuestions > 0) { alert(`分类已删除，同时删除了 ${d.deletedQuestions} 道题目`) }
       fetchCategories(); fetchQuestions()
-    } catch { alert("删除失败") }
+    } catch (e: any) { alert(e.message || "删除失败") }
   }
 
   const handleImport = async () => {
@@ -264,8 +233,9 @@ export default function QuestionBank() {
       const formData = new FormData()
       formData.append("file", importFile)
       if (importCategoryId && importCategoryId !== "none") formData.append("categoryId", importCategoryId)
+      const token = localStorage.getItem("token")
       const res = await fetch("/api/import/questions", {
-        method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: formData,
+        method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData,
       })
       const data = await res.json()
       if (!res.ok) { alert(data.error || "导入失败"); return }

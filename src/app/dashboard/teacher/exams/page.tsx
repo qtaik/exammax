@@ -12,6 +12,7 @@ import {
   Plus, Trash2, Eye, Clock, Timer, GripVertical,
   Shuffle, FileText, Users, ChevronRight,
 } from "lucide-react"
+import { api } from "@/lib/api"
 
 interface Class {
   id: string; name: string
@@ -64,18 +65,14 @@ export default function TeacherExamsPage() {
     if (!selectedClass) { setLoading(false); return }
     setLoading(true)
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch(`/api/tasks?classId=${selectedClass}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      setExams((await res.json()).tasks || [])
+      const data = await api.get<{ tasks: ExamItem[] }>("/api/tasks", { params: { classId: selectedClass } })
+      setExams(data.tasks || [])
     } catch {} finally { setLoading(false) }
   }, [selectedClass])
 
   useEffect(() => {
-    const token = localStorage.getItem("token")
-    fetch("/api/classes", { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json()).then((d) => {
+    api.get<{ classes: Class[] }>("/api/classes")
+      .then((d) => {
         setClasses(d.classes || [])
         if (d.classes?.length > 0) {
           setSelectedClass(d.classes[0].id)
@@ -98,8 +95,7 @@ export default function TeacherExamsPage() {
     setSelectedCategoryIds([])
     setQuestionPool([])
     try {
-      const catRes = await fetch("/api/categories")
-      const catData = await catRes.json()
+      const catData = await api.get<{ categories: Category[] }>("/api/categories")
       setCategories(catData.categories || [])
     } catch {}
   }
@@ -113,8 +109,10 @@ export default function TeacherExamsPage() {
     }
     const fetchQuestions = async () => {
       try {
-        const res = await fetch(`/api/practice?mode=all&categoryIds=${selectedCategoryIds.join(",")}`)
-        const data = await res.json()
+        const data = await api.get<{ questions: Question[] }>(
+          "/api/practice",
+          { params: { mode: "all", categoryIds: selectedCategoryIds.join(",") } }
+        )
         const newPool = data.questions || []
         setQuestionPool(newPool)
         // 清理已选题目中不在新池子里的
@@ -162,20 +160,15 @@ export default function TeacherExamsPage() {
     if (!formTitle.trim() || !formDeadline || selectedIds.length === 0) return
     setSaving(true)
     try {
-      const token = localStorage.getItem("token")
-      await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          classId: selectedClass,
-          title: formTitle,
-          description: formDesc,
-          deadline: formDeadline,
-          questionIds: selectedIds,
-          questionOrder: formOrder,
-          perQuestionTime: formPerTime ? parseInt(formPerTime) : null,
-          maxTabSwitches: parseInt(formMaxSwitches) || 3,
-        }),
+      await api.post("/api/tasks", {
+        classId: selectedClass,
+        title: formTitle,
+        description: formDesc,
+        deadline: formDeadline,
+        questionIds: selectedIds,
+        questionOrder: formOrder,
+        perQuestionTime: formPerTime ? parseInt(formPerTime) : null,
+        maxTabSwitches: parseInt(formMaxSwitches) || 3,
       })
       setCreateDialog(false)
       fetchExams()
@@ -185,11 +178,7 @@ export default function TeacherExamsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("确定删除该考试？")) return
     try {
-      const token = localStorage.getItem("token")
-      await fetch(`/api/tasks/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      await api.delete(`/api/tasks/${id}`)
       fetchExams()
     } catch {}
   }

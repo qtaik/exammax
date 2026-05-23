@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { api } from "@/lib/api"
 import {
   Search,
   ChevronLeft,
@@ -82,14 +83,9 @@ export default function AdminAccountCodesPage() {
 
   const [timezone, setTimezone] = useState("Asia/Shanghai")
 
-  const getToken = () => localStorage.getItem("token")
-
   // 读取系统时区设置
   useEffect(() => {
-    const t = getToken()
-    if (!t) return
-    fetch("/api/admin/settings", { headers: { Authorization: `Bearer ${t}` } })
-      .then(r => r.json())
+    api.get<{ settings: { key: string; value: string }[] }>("/api/admin/settings")
       .then(data => {
         const tz = (data.settings || []).find((s: any) => s.key === "timezone")
         if (tz) setTimezone(tz.value)
@@ -100,14 +96,13 @@ export default function AdminAccountCodesPage() {
   const fetchCodes = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ page: String(page), limit: "20" })
-      if (statusFilter && statusFilter !== "all") params.set("status", statusFilter)
-
-      const res = await fetch(`/api/admin/account-codes?${params}`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
+      const data = await api.get<{ codes: AccountCodeItem[]; total: number; totalPages: number }>("/api/admin/account-codes", {
+        params: {
+          page: String(page),
+          limit: "20",
+          status: statusFilter !== "all" ? statusFilter : undefined,
+        },
       })
-      if (!res.ok) throw new Error()
-      const data = await res.json()
       setCodes(data.codes)
       setTotal(data.total)
       setTotalPages(data.totalPages)
@@ -130,113 +125,56 @@ export default function AdminAccountCodesPage() {
     }
 
     try {
-      const res = await fetch("/api/admin/account-codes", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({
-          count,
-          role: genRole,
-          expiresAt: genExpiry ? new Date(genExpiry).toISOString() : undefined,
-        }),
+      const data = await api.post<{ codes: AccountCodeItem[] }>("/api/admin/account-codes", {
+        count,
+        role: genRole,
+        expiresAt: genExpiry ? new Date(genExpiry).toISOString() : undefined,
       })
-      if (!res.ok) {
-        const data = await res.json()
-        alert(data.error || "生成失败")
-        return
-      }
-      const data = await res.json()
       setGeneratedCodes(data.codes.map((c: AccountCodeItem) => c.code))
       fetchCodes()
-    } catch {
-      alert("生成失败")
+    } catch (e: any) {
+      alert(e.message || "生成失败")
     }
   }
 
   const handleRevoke = async (id: string) => {
     if (!confirm("确定要吊销此账户码吗？绑定用户将无法登录")) return
     try {
-      const res = await fetch(`/api/admin/account-codes/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({ action: "revoke" }),
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        alert(data.error || "操作失败")
-        return
-      }
+      await api.patch(`/api/admin/account-codes/${id}`, { action: "revoke" })
       fetchCodes()
-    } catch {
-      alert("操作失败")
+    } catch (e: any) {
+      alert(e.message || "操作失败")
     }
   }
 
   const handleReinstate = async (id: string) => {
     if (!confirm("确定要恢复此账户码吗？")) return
     try {
-      const res = await fetch(`/api/admin/account-codes/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({ action: "reinstate" }),
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        alert(data.error || "操作失败")
-        return
-      }
+      await api.patch(`/api/admin/account-codes/${id}`, { action: "reinstate" })
       fetchCodes()
-    } catch {
-      alert("操作失败")
+    } catch (e: any) {
+      alert(e.message || "操作失败")
     }
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm("确定要删除此账户码吗？此操作不可撤销")) return
     try {
-      const res = await fetch(`/api/admin/account-codes/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${getToken()}` },
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        alert(data.error || "删除失败")
-        return
-      }
+      await api.delete(`/api/admin/account-codes/${id}`)
       fetchCodes()
-    } catch {
-      alert("删除失败")
+    } catch (e: any) {
+      alert(e.message || "删除失败")
     }
   }
 
   const handleExtend = async () => {
     if (!extendOpen || !extendExpiry) return
     try {
-      const res = await fetch(`/api/admin/account-codes/${extendOpen.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({ action: "extend", expiresAt: new Date(extendExpiry).toISOString() }),
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        alert(data.error || "延期失败")
-        return
-      }
+      await api.patch(`/api/admin/account-codes/${extendOpen.id}`, { action: "extend", expiresAt: new Date(extendExpiry).toISOString() })
       setExtendOpen(null)
       fetchCodes()
-    } catch {
-      alert("延期失败")
+    } catch (e: any) {
+      alert(e.message || "延期失败")
     }
   }
 

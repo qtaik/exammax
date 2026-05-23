@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { api } from "@/lib/api"
 import { Tag, Plus, Pencil, Trash2, ShoppingBag, Star } from "lucide-react"
 
 interface TitleItem {
@@ -34,14 +35,8 @@ export default function AdminTitlesPage() {
   const fetchTitles = useCallback(async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch("/api/admin/titles", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setTitles(data.titles || [])
-      }
+      const data = await api.get<{ titles: TitleItem[] }>("/api/admin/titles")
+      setTitles(data.titles || [])
     } catch {} finally {
       setLoading(false)
     }
@@ -73,7 +68,6 @@ export default function AdminTitlesPage() {
 
     setSaving(true)
     try {
-      const token = localStorage.getItem("token")
       const body = {
         name: name.trim(),
         icon: icon.trim() || null,
@@ -81,24 +75,16 @@ export default function AdminTitlesPage() {
         limited,
       }
 
-      const res = await fetch(
-        editingId ? `/api/admin/titles/${editingId}` : "/api/admin/titles",
-        {
-          method: editingId ? "PATCH" : "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify(body),
-        }
-      )
-
-      if (res.ok) {
-        setDialogOpen(false)
-        await fetchTitles()
+      if (editingId) {
+        await api.patch(`/api/admin/titles/${editingId}`, body)
       } else {
-        const data = await res.json()
-        alert(data.error || "操作失败")
+        await api.post("/api/admin/titles", body)
       }
-    } catch {
-      alert("操作失败")
+
+      setDialogOpen(false)
+      await fetchTitles()
+    } catch (e: any) {
+      alert(e.message || "操作失败")
     } finally {
       setSaving(false)
     }
@@ -108,19 +94,10 @@ export default function AdminTitlesPage() {
     if (!confirm("确定删除此称号？已拥有该称号的用户将失去它。")) return
     setDeleting(id)
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch(`/api/admin/titles/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (res.ok) {
-        await fetchTitles()
-      } else {
-        const data = await res.json()
-        alert(data.error || "删除失败")
-      }
-    } catch {
-      alert("删除失败")
+      await api.delete(`/api/admin/titles/${id}`)
+      await fetchTitles()
+    } catch (e: any) {
+      alert(e.message || "删除失败")
     } finally {
       setDeleting(null)
     }

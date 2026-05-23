@@ -15,6 +15,7 @@ import {
   Target, Percent, Trophy, TrendingUp, AlertTriangle,
   RotateCcw, ChevronDown, ChevronUp, BookOpen,
 } from "lucide-react"
+import { api } from "@/lib/api"
 
 interface QuestionBrief {
   id: string
@@ -113,11 +114,7 @@ export default function WrongQuestionsPage() {
     const run = async () => {
       setSelfHealing(true)
       try {
-        const token = localStorage.getItem("token")
-        await fetch("/api/wrong-questions/self-heal", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        })
+        await api.post("/api/wrong-questions/self-heal")
       } catch {} finally {
         setSelfHealing(false)
       }
@@ -127,8 +124,7 @@ export default function WrongQuestionsPage() {
 
   // --- Fetch categories ---
   useEffect(() => {
-    fetch("/api/categories")
-      .then((res) => res.json())
+    api.get<{ categories: Category[] }>("/api/categories")
       .then((data) => setCategories(data.categories || []))
       .catch(() => {})
   }, [])
@@ -137,18 +133,10 @@ export default function WrongQuestionsPage() {
   const fetchList = useCallback(async (tab: string, pg: number, cat: string) => {
     setLoading(true)
     try {
-      const token = localStorage.getItem("token")
-      const params = new URLSearchParams({
-        status: tab,
-        page: String(pg),
-        limit: "20",
-      })
-      if (cat && cat !== "all") params.set("categoryId", cat)
-
-      const res = await fetch(`/api/wrong-questions?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      const data = await res.json()
+      const data = await api.get<{ records: WrongRecord[]; totalPages: number; total: number }>(
+        "/api/wrong-questions",
+        { params: { status: tab, page: String(pg), limit: "20", categoryId: cat !== "all" ? cat : undefined } }
+      )
       setRecords(data.records || [])
       setTotalPages(data.totalPages || 1)
       setTotal(data.total || 0)
@@ -160,18 +148,10 @@ export default function WrongQuestionsPage() {
   // --- Fetch leaderboard ---
   const fetchLeaderboard = useCallback(async (cat: string) => {
     try {
-      const token = localStorage.getItem("token")
-      const params = new URLSearchParams({
-        status: "ACTIVE",
-        sort: "errorCount",
-        limit: "20",
-      })
-      if (cat && cat !== "all") params.set("categoryId", cat)
-
-      const res = await fetch(`/api/wrong-questions?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      const data = await res.json()
+      const data = await api.get<{ records: LeaderItem[] }>(
+        "/api/wrong-questions",
+        { params: { status: "ACTIVE", sort: "errorCount", limit: "20", categoryId: cat !== "all" ? cat : undefined } }
+      )
       setLeaderboard(data.records || [])
     } catch {}
   }, [])
@@ -207,12 +187,10 @@ export default function WrongQuestionsPage() {
     setPracticeLoading(true)
     setPhase("practice")
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch(
-        `/api/wrong-questions/practice?ids=${record.question.id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      const data = await api.get<{ questions: PracticeQuestion[] }>(
+        "/api/wrong-questions/practice",
+        { params: { ids: record.question.id } }
       )
-      const data = await res.json()
       const qs = data.questions || []
       setPracticeQuestions(qs)
       setPracticeIndex(0)
@@ -238,13 +216,9 @@ export default function WrongQuestionsPage() {
 
     setSubmitting(true)
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch("/api/practice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ questionId: q.id, userAnswer: answer, timeSpent }),
+      const data = await api.post<SubmitResult>("/api/practice", {
+        questionId: q.id, userAnswer: answer, timeSpent,
       })
-      const data = await res.json()
       setResult(data)
       setPracticeSummary((prev) => ({
         total: prev.total + 1,
@@ -252,10 +226,8 @@ export default function WrongQuestionsPage() {
       }))
 
       // Fire-and-forget 更新错题状态
-      fetch("/api/wrong-questions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ questionId: q.id, correct: data.correct, userAnswer: answer }),
+      api.post("/api/wrong-questions", {
+        questionId: q.id, correct: data.correct, userAnswer: answer,
       }).catch(() => {})
     } catch {} finally { setSubmitting(false) }
   }

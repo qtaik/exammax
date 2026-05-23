@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Users, Plus, Trash2, Copy, Eye, Search, Check } from "lucide-react"
+import { api } from "@/lib/api"
 
 interface ClassItem {
   id: string
@@ -46,9 +47,8 @@ export default function TeacherClassesPage() {
   const fetchClasses = useCallback(async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch("/api/classes", { headers: { Authorization: `Bearer ${token}` } })
-      setClasses((await res.json()).classes || [])
+      const data = await api.get<{ classes: ClassItem[] }>("/api/classes")
+      setClasses(data.classes || [])
     } catch {} finally { setLoading(false) }
   }, [])
 
@@ -58,12 +58,7 @@ export default function TeacherClassesPage() {
     if (!formName.trim()) return
     setSaving(true)
     try {
-      const token = localStorage.getItem("token")
-      await fetch("/api/classes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: formName, description: formDesc }),
-      })
+      await api.post("/api/classes", { name: formName, description: formDesc })
       setCreateDialog(false)
       setFormName("")
       setFormDesc("")
@@ -75,12 +70,7 @@ export default function TeacherClassesPage() {
     if (!editDialog || !formName.trim()) return
     setSaving(true)
     try {
-      const token = localStorage.getItem("token")
-      await fetch(`/api/classes/${editDialog.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: formName, description: formDesc }),
-      })
+      await api.put(`/api/classes/${editDialog.id}`, { name: formName, description: formDesc })
       setEditDialog(null)
       fetchClasses()
     } catch {} finally { setSaving(false) }
@@ -89,11 +79,7 @@ export default function TeacherClassesPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("确定删除该班级？")) return
     try {
-      const token = localStorage.getItem("token")
-      await fetch(`/api/classes/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      await api.delete(`/api/classes/${id}`)
       fetchClasses()
     } catch (e: any) { alert(e.message) }
   }
@@ -101,24 +87,18 @@ export default function TeacherClassesPage() {
   const openMembers = async (cls: ClassItem) => {
     setMemberDialog(cls)
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch(`/api/classes/${cls.id}/members`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      setMembers((await res.json()).members || [])
+      const data = await api.get<{ members: Member[] }>(`/api/classes/${cls.id}/members`)
+      setMembers(data.members || [])
     } catch {}
   }
 
   const fetchStudents = async (search: string) => {
     setStudentLoading(true)
     try {
-      const token = localStorage.getItem("token")
-      const params = new URLSearchParams({ role: "STUDENT", limit: "100" })
-      if (search) params.set("search", search)
-      const res = await fetch(`/api/admin/users?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      const data = await res.json()
+      const data = await api.get<{ users: { id: string; username: string }[] }>(
+        "/api/admin/users",
+        { params: { role: "STUDENT", limit: "100", search: search || undefined } }
+      )
       setStudentList(data.users || [])
     } catch {} finally { setStudentLoading(false) }
   }
@@ -132,12 +112,7 @@ export default function TeacherClassesPage() {
   const handleAddMember = async (userId: string) => {
     if (!memberDialog) return
     try {
-      const token = localStorage.getItem("token")
-      await fetch(`/api/classes/${memberDialog.id}/members`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ userId }),
-      })
+      await api.post(`/api/classes/${memberDialog.id}/members`, { userId })
       // Refresh members list and remove this student from the selection list
       openMembers(memberDialog)
       setStudentList((prev) => prev.filter((s) => s.id !== userId))
@@ -147,11 +122,7 @@ export default function TeacherClassesPage() {
   const handleRemoveMember = async (userId: string) => {
     if (!memberDialog || !confirm("确定移除该学生？")) return
     try {
-      const token = localStorage.getItem("token")
-      await fetch(`/api/classes/${memberDialog.id}/members?userId=${userId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      await api.delete(`/api/classes/${memberDialog.id}/members`, { params: { userId } })
       openMembers(memberDialog)
     } catch {}
   }
@@ -159,11 +130,7 @@ export default function TeacherClassesPage() {
   const handleGenInvite = async (cls: ClassItem) => {
     setInviteDialog(cls)
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch(`/api/classes/${cls.id}/class-code`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      const data = await res.json()
+      const data = await api.get<{ classCode?: { code: string } }>(`/api/classes/${cls.id}/class-code`)
       setInviteCode(data.classCode?.code || "")
     } catch {}
   }

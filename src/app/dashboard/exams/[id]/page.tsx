@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { api } from "@/lib/api"
 import {
   ArrowLeft, Clock, Monitor, CheckCircle, XCircle, AlertTriangle,
   Maximize, ChevronLeft, ChevronRight, Send, Timer,
@@ -85,11 +86,7 @@ export default function StudentExamPage() {
     const fetchExam = async () => {
       setLoading(true)
       try {
-        const token = localStorage.getItem("token")
-        const res = await fetch(`/api/tasks/${examId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        const d = await res.json()
+        const d = await api.get<TaskData>(`/api/tasks/${examId}`)
         setData(d)
 
         if (d.submission?.tabSwitches != null) setTabSwitches(d.submission.tabSwitches)
@@ -271,24 +268,18 @@ export default function StudentExamPage() {
     const finalPerTime = { ...perQuestionTime, [q.id]: (perQuestionTime[q.id] || 0) + elapsed }
 
     try {
-      const token = localStorage.getItem("token")
       const answerList = data.task.questions.map((q) => ({
         questionId: q.id,
         userAnswer: answersRef.current[q.id] || "",
         timeSpent: finalPerTime[q.id] || 0,
       }))
 
-      const res = await fetch(`/api/tasks/${examId}/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          answers: answerList,
-          tabSwitches: tabSwitchesRef.current,
-          switchLog: switchLogRef.current,
-          perQuestionTime: finalPerTime,
-        }),
+      const result = await api.post<{ success: boolean; error?: string }>(`/api/tasks/${examId}/submit`, {
+        answers: answerList,
+        tabSwitches: tabSwitchesRef.current,
+        switchLog: switchLogRef.current,
+        perQuestionTime: finalPerTime,
       })
-      const result = await res.json()
 
       if (result.success) {
         clearSession(examId)
@@ -299,7 +290,9 @@ export default function StudentExamPage() {
       } else {
         alert(result.error || "提交失败")
       }
-    } catch {} finally { setSubmitting(false) }
+    } catch (e: any) {
+      alert(e.message || "提交失败")
+    } finally { setSubmitting(false) }
   }
   useEffect(() => { handleSubmitRef.current = handleSubmit })
 

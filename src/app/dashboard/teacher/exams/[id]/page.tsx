@@ -9,6 +9,7 @@ import {
   ArrowLeft, CheckCircle, XCircle, Users, UserCheck, Clock,
   Percent, Monitor, ChevronDown, ChevronUp, Target,
 } from "lucide-react"
+import { api } from "@/lib/api"
 
 interface TaskInfo {
   id: string; title: string
@@ -46,11 +47,9 @@ export default function ExamResultsPage() {
     const fetchResults = async () => {
       setLoading(true)
       try {
-        const token = localStorage.getItem("token")
-        const res = await fetch(`/api/tasks/${examId}/results`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        const data = await res.json()
+        const data = await api.get<{ task: TaskInfo; results: StudentResult[] }>(
+          `/api/tasks/${examId}/results`
+        )
         setTask(data.task)
         setResults(data.results || [])
       } catch {} finally {

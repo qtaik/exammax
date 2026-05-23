@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { School, Users, User, LogIn, Copy, LogOut } from "lucide-react"
+import { api } from "@/lib/api"
 
 interface ClassItem {
   id: string; name: string; description: string | null
@@ -26,11 +27,8 @@ export default function StudentClassesPage() {
   const fetchClasses = useCallback(async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch("/api/classes", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      setClasses((await res.json()).classes || [])
+      const data = await api.get<{ classes: ClassItem[] }>("/api/classes")
+      setClasses(data.classes || [])
     } catch {} finally { setLoading(false) }
   }, [])
 
@@ -41,22 +39,12 @@ export default function StudentClassesPage() {
     setJoining(true)
     setJoinResult(null)
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch("/api/classes/join-by-code", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ code: inviteCode.trim() }),
-      })
-      const data = await res.json()
-      if (res.ok) {
-        setJoinResult({ ok: true, msg: `成功加入：${data.className}` })
-        setInviteCode("")
-        fetchClasses()
-      } else {
-        setJoinResult({ ok: false, msg: data.error || "加入失败" })
-      }
-    } catch {
-      setJoinResult({ ok: false, msg: "网络错误" })
+      const data = await api.post<{ className: string }>("/api/classes/join-by-code", { code: inviteCode.trim() })
+      setJoinResult({ ok: true, msg: `成功加入：${data.className}` })
+      setInviteCode("")
+      fetchClasses()
+    } catch (e: any) {
+      setJoinResult({ ok: false, msg: e.message || "加入失败" })
     } finally { setJoining(false) }
   }
 
@@ -64,20 +52,11 @@ export default function StudentClassesPage() {
     if (!leaveClass) return
     setLeaving(true)
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch(`/api/classes/${leaveClass.id}/leave`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (res.ok) {
-        setClasses((prev) => prev.filter((c) => c.id !== leaveClass.id))
-        setLeaveClass(null)
-      } else {
-        const data = await res.json()
-        alert(data.error || "退出失败")
-      }
-    } catch {
-      alert("网络错误")
+      await api.post(`/api/classes/${leaveClass.id}/leave`)
+      setClasses((prev) => prev.filter((c) => c.id !== leaveClass.id))
+      setLeaveClass(null)
+    } catch (e: any) {
+      alert(e.message || "退出失败")
     } finally { setLeaving(false) }
   }
 

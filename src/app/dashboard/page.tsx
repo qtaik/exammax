@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { BookOpen, Trophy, ShoppingBag, RotateCcw, BarChart3, Users, HelpCircle, Settings, CalendarCheck, Award, User, Sparkles, School, FileText, Tag } from "lucide-react"
+import { api } from "@/lib/api"
 
 interface User {
   id: string
@@ -19,12 +20,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null)
 
   useEffect(() => {
-    const token = localStorage.getItem("token")
-    if (!token) return
-    fetch("/api/user/me", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
+    api.get<{ user: User }>("/api/user/me")
       .then((data) => setUser(data.user))
       .catch(() => {})
   }, [])

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { User, Trophy, Star, Flame, Shield, Check, Pencil, KeyRound, ArrowUpDown } from "lucide-react"
+import { api } from "@/lib/api"
 
 interface UserInfo {
   id: string
@@ -63,39 +64,25 @@ export default function ProfilePage() {
 
   const [badgesDialogOpen, setBadgesDialogOpen] = useState(false)
 
-  const getToken = () => localStorage.getItem("token")
-
   const fetchAll = async () => {
     setLoading(true)
-    try {
-      const token = getToken()
-      const headers: Record<string, string> = {}
-      if (token) headers.Authorization = `Bearer ${token}`
+    const results = await Promise.allSettled([
+      api.get<{ user: UserInfo }>("/api/user/me"),
+      api.get<{ achievements: Achievement[] }>("/api/achievements"),
+      api.get<{ items: ShopItem[] }>("/api/shop"),
+    ])
 
-      const [userRes, achRes, shopRes] = await Promise.all([
-        fetch("/api/user/me", { headers }),
-        fetch("/api/achievements", { headers }),
-        fetch("/api/shop", { headers }),
-      ])
-
-      if (userRes.ok) {
-        const data = await userRes.json()
-        setUser(data.user)
-        setNewUsername(data.user.username)
-      }
-      if (achRes.ok) {
-        const data = await achRes.json()
-        setAchievements(data.achievements || [])
-      }
-      if (shopRes.ok) {
-        const data = await shopRes.json()
-        setShopItems(data.items || [])
-      }
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false)
+    if (results[0].status === "fulfilled") {
+      setUser(results[0].value.user)
+      setNewUsername(results[0].value.user.username)
     }
+    if (results[1].status === "fulfilled") {
+      setAchievements(results[1].value.achievements || [])
+    }
+    if (results[2].status === "fulfilled") {
+      setShopItems(results[2].value.items || [])
+    }
+    setLoading(false)
   }
 
   useEffect(() => {
@@ -109,21 +96,11 @@ export default function ProfilePage() {
     }
     setSavingUsername(true)
     try {
-      const token = getToken()
-      const res = await fetch("/api/user/me", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ username: newUsername }),
-      })
-      if (res.ok) {
-        setEditingUsername(false)
-        await fetchAll()
-      } else {
-        const data = await res.json()
-        alert(data.error || "修改失败")
-      }
-    } catch {
-      alert("修改失败")
+      await api.patch("/api/user/me", { username: newUsername })
+      setEditingUsername(false)
+      await fetchAll()
+    } catch (e: any) {
+      alert(e.message || "修改失败")
     } finally {
       setSavingUsername(false)
     }
@@ -140,23 +117,13 @@ export default function ProfilePage() {
     }
     setSavingPassword(true)
     try {
-      const token = getToken()
-      const res = await fetch("/api/user/password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ oldPassword, newPassword }),
-      })
-      if (res.ok) {
-        alert("密码修改成功")
-        setPasswordOpen(false)
-        setOldPassword("")
-        setNewPassword("")
-      } else {
-        const data = await res.json()
-        alert(data.error || "修改失败")
-      }
-    } catch {
-      alert("修改失败")
+      await api.post("/api/user/password", { oldPassword, newPassword })
+      alert("密码修改成功")
+      setPasswordOpen(false)
+      setOldPassword("")
+      setNewPassword("")
+    } catch (e: any) {
+      alert(e.message || "修改失败")
     } finally {
       setSavingPassword(false)
     }
@@ -164,15 +131,10 @@ export default function ProfilePage() {
 
   const handleToggleOrder = async () => {
     try {
-      const token = getToken()
-      const res = await fetch("/api/user/me", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ showBadgeFirst: !user?.showBadgeFirst }),
-      })
-      if (res.ok) await fetchAll()
-    } catch {
-      alert("设置失败")
+      await api.patch("/api/user/me", { showBadgeFirst: !user?.showBadgeFirst })
+      await fetchAll()
+    } catch (e: any) {
+      alert(e.message || "设置失败")
     }
   }
 
@@ -180,20 +142,10 @@ export default function ProfilePage() {
     if (equipping) return
     setEquipping(badgeId)
     try {
-      const token = getToken()
-      const res = await fetch("/api/profile/equip", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ badgeId }),
-      })
-      if (res.ok) {
-        await fetchAll()
-      } else {
-        const data = await res.json()
-        alert(data.error || "操作失败")
-      }
-    } catch {
-      alert("操作失败")
+      await api.post("/api/profile/equip", { badgeId })
+      await fetchAll()
+    } catch (e: any) {
+      alert(e.message || "操作失败")
     } finally {
       setEquipping(null)
     }
@@ -203,20 +155,10 @@ export default function ProfilePage() {
     if (equipping) return
     setEquipping(badgeId)
     try {
-      const token = getToken()
-      const res = await fetch("/api/profile/equip", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ badgeId }),
-      })
-      if (res.ok) {
-        await fetchAll()
-      } else {
-        const data = await res.json()
-        alert(data.error || "操作失败")
-      }
-    } catch {
-      alert("操作失败")
+      await api.delete("/api/profile/equip", { body: { badgeId } })
+      await fetchAll()
+    } catch (e: any) {
+      alert(e.message || "操作失败")
     } finally {
       setEquipping(null)
     }
@@ -224,20 +166,10 @@ export default function ProfilePage() {
 
   const handleSetTitle = async (itemId: string) => {
     try {
-      const token = getToken()
-      const res = await fetch("/api/profile/title", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ itemId }),
-      })
-      if (res.ok) {
-        await fetchAll()
-      } else {
-        const data = await res.json()
-        alert(data.error || "操作失败")
-      }
-    } catch {
-      alert("操作失败")
+      await api.post("/api/profile/title", { itemId })
+      await fetchAll()
+    } catch (e: any) {
+      alert(e.message || "操作失败")
     }
   }
 
@@ -364,15 +296,10 @@ export default function ProfilePage() {
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={async () => {
               try {
-                const token = getToken()
-                const res = await fetch("/api/user/me", {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                  body: JSON.stringify({ showBadgeText: !user?.showBadgeText }),
-                })
-                if (res.ok) await fetchAll()
-              } catch {
-                alert("设置失败")
+                await api.patch("/api/user/me", { showBadgeText: !user?.showBadgeText })
+                await fetchAll()
+              } catch (e: any) {
+                alert(e.message || "设置失败")
               }
             }}>
               {user?.showBadgeText ? "显示图标" : "显示文字"}

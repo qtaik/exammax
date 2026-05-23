@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Award, Lock } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { api } from "@/lib/api"
 
 interface Achievement {
   id: string
@@ -21,13 +22,7 @@ export default function AchievementsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem("token")
-    if (!token) return
-
-    fetch("/api/achievements", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
+    api.get<{ achievements: Achievement[] }>("/api/achievements")
       .then((data) => setAchievements(data.achievements || []))
       .catch(() => {})
       .finally(() => setLoading(false))

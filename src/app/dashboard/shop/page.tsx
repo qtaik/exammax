@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ShoppingBag, Coins, Medal, Tag, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { api } from "@/lib/api"
 
 interface ShopItem {
   id: string
@@ -32,17 +33,9 @@ export default function ShopPage() {
   const [success, setSuccess] = useState("")
 
   const fetchShop = async () => {
-    const token = localStorage.getItem("token")
-    if (!token) return
-
     try {
-      const res = await fetch("/api/shop", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setShopData(data)
-      }
+      const data = await api.get<ShopData>("/api/shop")
+      setShopData(data)
     } catch {
       // ignore
     } finally {
@@ -55,36 +48,19 @@ export default function ShopPage() {
   }, [])
 
   const handlePurchase = async (item: ShopItem) => {
-    const token = localStorage.getItem("token")
-    if (!token) return
-
     setPurchasing(item.id)
     setError("")
     setSuccess("")
 
     try {
-      const res = await fetch("/api/shop", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ itemId: item.id }),
-      })
-      const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.error || "兑换失败")
-        setConfirmItem(null)
-        return
-      }
-
+      await api.post("/api/shop", { itemId: item.id })
       setSuccess(`成功兑换 "${item.name}"!`)
       setConfirmItem(null)
       // Refresh shop data
       await fetchShop()
-    } catch {
-      setError("网络错误，请重试")
+    } catch (e: any) {
+      setError(e.message || "兑换失败")
+      setConfirmItem(null)
     } finally {
       setPurchasing(null)
     }

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Sparkles, Coins, TrendingUp, Gift, Star } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { api } from "@/lib/api"
 
 const TIER_CONFIG: Record<string, { label: string; color: string; bg: string; icon: typeof Sparkles }> = {
   nothing: { label: "谢谢参与", color: "text-muted-foreground", bg: "bg-muted", icon: Sparkles },
@@ -31,15 +32,9 @@ export default function LotteryPage() {
 
   const fetchState = useCallback(async () => {
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch("/api/lottery", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setPoints(data.points)
-        setPityCounter(data.pityCounter)
-      }
+      const data = await api.get<{ points: number; pityCounter: number }>("/api/lottery")
+      setPoints(data.points)
+      setPityCounter(data.pityCounter)
     } catch {} finally {
       setLoading(false)
     }
@@ -51,23 +46,17 @@ export default function LotteryPage() {
     if (drawing || points < 50) return
     setDrawing(true)
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch("/api/lottery/draw", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setResult(data.result)
-        setPityCounter(data.pityCounter)
-        setPoints((p) => p - 50 + (data.result.rewardType === "points" ? data.result.value : 0))
-        setShowResult(true)
-      } else {
-        const data = await res.json()
-        alert(data.error || "抽奖失败")
-      }
-    } catch {
-      alert("抽奖失败")
+      const data = await api.post<{
+        success: boolean
+        result: any
+        pityCounter: number
+      }>("/api/lottery/draw")
+      setResult(data.result)
+      setPityCounter(data.pityCounter)
+      setPoints((p) => p - 50 + (data.result.rewardType === "points" ? data.result.value : 0))
+      setShowResult(true)
+    } catch (e: any) {
+      alert(e?.message || "抽奖失败")
     } finally {
       setDrawing(false)
     }

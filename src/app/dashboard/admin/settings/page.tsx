@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Settings, Save } from "lucide-react"
+import { api } from "@/lib/api"
 
 interface SettingItem {
   id: string
@@ -64,11 +65,7 @@ export default function AdminSettingsPage() {
   const fetchSettings = useCallback(async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch("/api/admin/settings", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      const data = await res.json()
+      const data = await api.get<{ settings: SettingItem[] }>("/api/admin/settings")
       const existing = data.settings || []
 
       // 合并默认值：DB 有值时用 DB value，但 label/description 优先用 DEFAULT 的定义
@@ -92,12 +89,7 @@ export default function AdminSettingsPage() {
   const handleSave = async (key: string) => {
     setSaving((prev) => ({ ...prev, [key]: true }))
     try {
-      const token = localStorage.getItem("token")
-      await fetch("/api/admin/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ key, value: editedValues[key] }),
-      })
+      await api.put("/api/admin/settings", { key, value: editedValues[key] })
     } catch {} finally {
       setSaving((prev) => ({ ...prev, [key]: false }))
     }
