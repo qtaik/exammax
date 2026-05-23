@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { requireAuth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { Prisma } from "@prisma/client"
 
 const PITY_THRESHOLD = 30
 
@@ -91,7 +92,7 @@ export async function POST(req: Request) {
     // 更新数据库
     const newPity = tier === "legendary" ? 0 : dbUser.pityCounter + 1
 
-    const updates = [
+    const updates: Prisma.PrismaPromise<unknown>[] = [
       prisma.user.update({
         where: { id: user!.userId },
         data: {
