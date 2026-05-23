@@ -8,6 +8,5 @@ export default defineConfig({
     environment: "node",
     fileParallelism: false,
     pool: "forks",
-    singleFork: true,
   },
 })
