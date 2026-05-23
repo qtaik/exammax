@@ -8,8 +8,8 @@ const container: Variants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.15,
-      delayChildren: 0.2,
+      staggerChildren: 0.3,
+      delayChildren: 0.5,
     },
   },
 }
@@ -19,7 +19,7 @@ const fadeUp: Variants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { type: "spring", stiffness: 100, damping: 15 },
+    transition: { type: "spring", stiffness: 50, damping: 12 },
   },
 }
 
@@ -36,7 +36,7 @@ export default function Home() {
           className="text-4xl font-bold text-center mb-8"
           variants={fadeUp}
           animate={{ scale: [1, 1.03, 1] }}
-          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
         >
           ExamMax
         </motion.h1>
