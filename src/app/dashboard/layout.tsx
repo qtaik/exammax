@@ -73,6 +73,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     const check = () => {
+      const token = localStorage.getItem("token")
+      if (!token) {
+        window.location.replace("/login")
+        return
+      }
       api.get("/api/user/me").catch(() => {})
     }
 
@@ -92,11 +97,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
       }
     }
+
+    // bfcache restoration: re-check auth when browser restores page from cache
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        check()
+      }
+    }
+    window.addEventListener("pageshow", onPageShow)
+
     document.addEventListener("visibilitychange", onVisible)
 
     return () => {
       if (heartRef.current) clearInterval(heartRef.current)
       document.removeEventListener("visibilitychange", onVisible)
+      window.removeEventListener("pageshow", onPageShow)
     }
   }, [])
 

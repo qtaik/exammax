@@ -321,7 +321,7 @@ export default function PracticePage() {
     }))
 
     try {
-      const data = await api.post("/api/practice/exam", { answers, totalTime })
+      const data = await api.post<any>("/api/practice/exam", { answers, totalTime })
       setExamResult(data)
       setPhase("examResult")
     } catch {

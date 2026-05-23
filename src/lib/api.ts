@@ -19,7 +19,7 @@ function handleSessionKicked() {
   kickRedirecting = true
   localStorage.removeItem("token")
   localStorage.removeItem("user")
-  window.location.href = "/login?reason=kicked"
+  window.location.replace("/login?reason=kicked")
 }
 
 async function request<T = unknown>(
