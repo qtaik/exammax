@@ -126,7 +126,9 @@ export async function POST(req: Request) {
     })
 
     // fire-and-forget 检查勋章
-    checkAndAwardBadges(authResult.user!.userId).catch(() => {})
+    checkAndAwardBadges(authResult.user!.userId).catch((err) => {
+      console.error("Badge check failed:", err)
+    })
 
     return NextResponse.json({
       correct,

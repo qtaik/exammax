@@ -6,13 +6,22 @@ export async function GET(req: Request) {
   const { error, user } = await requireAuth(req)
   if (error) return error
 
-  const dbUser = await prisma.user.findUnique({
-    where: { id: user!.userId },
-    select: { points: true, pityCounter: true },
-  })
+  try {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user!.userId },
+      select: { points: true, pityCounter: true },
+    })
 
-  return NextResponse.json({
-    points: dbUser!.points,
-    pityCounter: dbUser!.pityCounter,
-  })
+    if (!dbUser) {
+      return NextResponse.json({ error: "用户不存在" }, { status: 404 })
+    }
+
+    return NextResponse.json({
+      points: dbUser.points,
+      pityCounter: dbUser.pityCounter,
+    })
+  } catch (err) {
+    console.error("Lottery GET error:", err)
+    return NextResponse.json({ error: "获取抽奖信息失败" }, { status: 500 })
+  }
 }

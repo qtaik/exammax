@@ -1,15 +1,5 @@
 import { prisma } from "./prisma"
 
-const BADGE_CONDITIONS = [
-  { name: "我上我也行", type: "answer_count", count: 1 },
-  { name: "扶我起来还能再刷", type: "answer_count", count: 10 },
-  { name: "键盘冒烟了", type: "answer_count", count: 100 },
-  { name: "难道我真的这么废柴吗？", type: "accuracy", rate: 20 },
-  { name: "好像有点东西", type: "accuracy", rate: 50 },
-  { name: "出题老师你过来一下", type: "accuracy", rate: 90 },
-  { name: "对王之王", type: "correct_count", count: 50 },
-]
-
 export async function checkAndAwardBadges(userId: string) {
   const [totalAnswers, correctAnswers] = await Promise.all([
     prisma.answerRecord.count({ where: { userId } }),
@@ -30,7 +20,8 @@ export async function checkAndAwardBadges(userId: string) {
   for (const badge of badges) {
     if (ownedBadgeIds.has(badge.id)) continue
     try {
-      const cond = JSON.parse(badge.condition as string)
+      const raw = badge.condition as unknown
+      const cond = typeof raw === "string" ? JSON.parse(raw) : raw as Record<string, unknown>
       let met = false
       switch (cond.type) {
         case "answer_count":

@@ -15,12 +15,9 @@ export async function upsertWrongQuestion(
 
     const newCount = existing.errorCount - 1
     if (newCount <= 0) {
-      const totalWrong = await prisma.answerRecord.count({
-        where: { userId, questionId, isCorrect: false },
-      })
       await prisma.wrongQuestion.update({
         where: { userId_questionId: { userId, questionId } },
-        data: { errorCount: totalWrong, status: "COMPLETED", completedAt: new Date() },
+        data: { errorCount: 0, status: "COMPLETED", completedAt: new Date() },
       })
     } else {
       await prisma.wrongQuestion.update({
@@ -213,7 +210,7 @@ export async function selfHeal(userId: string, retentionDays: number) {
     const cutoff = new Date()
     cutoff.setDate(cutoff.getDate() - retentionDays)
     await prisma.answerRecord.deleteMany({
-      where: { createdAt: { lt: cutoff } },
+      where: { userId, createdAt: { lt: cutoff } },
     })
   }
 

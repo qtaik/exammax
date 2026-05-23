@@ -1,11 +1,5 @@
 import { prisma } from "@/lib/prisma"
-
-async function getRetentionDays(): Promise<number> {
-  const setting = await prisma.setting.findUnique({
-    where: { key: "answer_retention_days" },
-  })
-  return setting ? parseInt(setting.value, 10) : 30
-}
+import { selfHeal, getRetentionDays } from "@/lib/wrong-questions"
 
 async function getIntervalMs(): Promise<number> {
   const setting = await prisma.setting.findUnique({
@@ -18,7 +12,27 @@ async function getIntervalMs(): Promise<number> {
 async function runCleanup() {
   const retentionDays = await getRetentionDays()
 
-  // Clean expired AnswerRecords
+  // 1. Rebuild WrongQuestions for all users with AnswerRecords FIRST
+  const userIds = await prisma.answerRecord.findMany({
+    select: { userId: true },
+    distinct: ["userId"],
+  })
+
+  if (userIds.length > 0) {
+    let healedTotal = 0
+    for (const { userId } of userIds) {
+      const result = await selfHeal(userId, retentionDays)
+      healedTotal += result.healed
+    }
+
+    if (healedTotal > 0) {
+      console.log(
+        `[Scheduler] Rebuilt ${healedTotal} WrongQuestions across ${userIds.length} users`,
+      )
+    }
+  }
+
+  // 2. THEN clean expired AnswerRecords globally
   if (retentionDays > 0) {
     const cutoff = new Date()
     cutoff.setDate(cutoff.getDate() - retentionDays)
@@ -33,27 +47,6 @@ async function runCleanup() {
       )
     }
   }
-
-  // Rebuild WrongQuestions for all users with AnswerRecords
-  const userIds = await prisma.answerRecord.findMany({
-    select: { userId: true },
-    distinct: ["userId"],
-  })
-
-  if (userIds.length > 0) {
-    const { selfHeal } = await import("@/lib/wrong-questions")
-    let healedTotal = 0
-    for (const { userId } of userIds) {
-      const result = await selfHeal(userId, retentionDays)
-      healedTotal += result.healed
-    }
-
-    if (healedTotal > 0) {
-      console.log(
-        `[Scheduler] Rebuilt ${healedTotal} WrongQuestions across ${userIds.length} users`,
-      )
-    }
-  }
 }
 
 export async function schedulerLoop() {
@@ -63,6 +56,11 @@ export async function schedulerLoop() {
     console.error("[Scheduler] Error:", err)
   }
 
-  const intervalMs = await getIntervalMs()
-  setTimeout(schedulerLoop, intervalMs)
+  try {
+    const intervalMs = await getIntervalMs()
+    setTimeout(schedulerLoop, intervalMs)
+  } catch (err) {
+    console.error("[Scheduler] Failed to get interval, using default 1h:", err)
+    setTimeout(schedulerLoop, 3600_000)
+  }
 }

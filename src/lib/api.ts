@@ -11,15 +11,16 @@ function getToken(): string | null {
   return localStorage.getItem("token")
 }
 
-let kickRedirecting = false
+let redirecting = false
 
-function handleSessionKicked() {
+function handle401(reason?: string) {
   if (typeof window === "undefined") return
-  if (kickRedirecting) return
-  kickRedirecting = true
+  if (redirecting) return
+  redirecting = true
   localStorage.removeItem("token")
   localStorage.removeItem("user")
-  window.location.replace("/login?reason=kicked")
+  const query = reason ? `?reason=${encodeURIComponent(reason)}` : ""
+  window.location.replace(`/login${query}`)
 }
 
 async function request<T = unknown>(
@@ -63,10 +64,8 @@ async function request<T = unknown>(
 
   if (res.status === 401) {
     const msg = isJson ? data?.error : ""
-    if (msg === "账号已在其他设备登录，请重新登录") {
-      handleSessionKicked()
-      throw new Error(msg)
-    }
+    handle401(msg || undefined)
+    throw new Error(msg || "认证失败")
   }
 
   if (!res.ok) {

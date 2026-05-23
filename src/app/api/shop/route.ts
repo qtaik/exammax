@@ -58,69 +58,48 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "缺少商品ID" }, { status: 400 })
     }
 
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user!.userId },
-      select: { points: true },
+    const result = await prisma.$transaction(async (tx) => {
+      const [dbUser, item, existingPurchase] = await Promise.all([
+        tx.user.findUnique({
+          where: { id: user!.userId },
+          select: { points: true },
+        }),
+        tx.shopItem.findUnique({ where: { id: itemId } }),
+        tx.userItem.findUnique({
+          where: { userId_itemId: { userId: user!.userId, itemId } },
+        }),
+      ])
+
+      if (!dbUser) return { status: 404 as const, error: "用户不存在" }
+      if (!item) return { status: 404 as const, error: "商品不存在" }
+      if (existingPurchase) return { status: 400 as const, error: "已购买该商品" }
+      if (dbUser.points < item.price) return { status: 400 as const, error: "积分不足" }
+
+      const [updatedUser] = await Promise.all([
+        tx.user.update({
+          where: { id: user!.userId },
+          data: { points: { decrement: item.price } },
+        }),
+        tx.userItem.create({
+          data: { userId: user!.userId, itemId },
+        }),
+        tx.pointLog.create({
+          data: {
+            userId: user!.userId,
+            points: -item.price,
+            reason: `兑换商品: ${item.name}`,
+          },
+        }),
+      ])
+
+      return { status: 200 as const, newPoints: updatedUser.points }
     })
 
-    if (!dbUser) {
-      return NextResponse.json({ error: "用户不存在" }, { status: 404 })
+    if (result.status !== 200) {
+      return NextResponse.json({ error: result.error }, { status: result.status })
     }
 
-    const item = await prisma.shopItem.findUnique({
-      where: { id: itemId },
-    })
-
-    if (!item) {
-      return NextResponse.json({ error: "商品不存在" }, { status: 404 })
-    }
-
-    // Check if already purchased
-    const existingPurchase = await prisma.userItem.findUnique({
-      where: {
-        userId_itemId: {
-          userId: user!.userId,
-          itemId,
-        },
-      },
-    })
-
-    if (existingPurchase) {
-      return NextResponse.json({ error: "已购买该商品" }, { status: 400 })
-    }
-
-    // Check if enough points
-    if (dbUser.points < item.price) {
-      return NextResponse.json({ error: "积分不足" }, { status: 400 })
-    }
-
-    // Deduct points, create UserItem, create PointLog
-    const [updatedUser] = await prisma.$transaction([
-      prisma.user.update({
-        where: { id: user!.userId },
-        data: {
-          points: { decrement: item.price },
-        },
-      }),
-      prisma.userItem.create({
-        data: {
-          userId: user!.userId,
-          itemId,
-        },
-      }),
-      prisma.pointLog.create({
-        data: {
-          userId: user!.userId,
-          points: -item.price,
-          reason: `兑换商品: ${item.name}`,
-        },
-      }),
-    ])
-
-    return NextResponse.json({
-      success: true,
-      newPoints: updatedUser.points,
-    })
+    return NextResponse.json({ success: true, newPoints: result.newPoints })
   } catch {
     return NextResponse.json({ error: "服务器错误" }, { status: 500 })
   }

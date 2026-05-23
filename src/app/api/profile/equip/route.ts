@@ -29,7 +29,6 @@ export async function GET(req: Request) {
           },
         },
         items: {
-          where: { itemId: user!.userId ? undefined : undefined },
           select: {
             itemId: true,
             item: { select: { id: true, name: true, type: true } },
@@ -108,17 +107,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "该徽章已装备" }, { status: 400 })
     }
 
-    // 自动卸下当前装备的徽章（最多1个）
-    await prisma.userBadge.updateMany({
-      where: { userId: user!.userId, equipped: true },
-      data: { equipped: false },
-    })
-
-    // Equip the badge
-    await prisma.userBadge.update({
-      where: { id: userBadge.id },
-      data: { equipped: true },
-    })
+    // 自动卸下当前装备的徽章 + 装备新徽章（事务保证原子性）
+    await prisma.$transaction([
+      prisma.userBadge.updateMany({
+        where: { userId: user!.userId, equipped: true },
+        data: { equipped: false },
+      }),
+      prisma.userBadge.update({
+        where: { id: userBadge.id },
+        data: { equipped: true },
+      }),
+    ])
 
     return NextResponse.json({ success: true, message: "徽章已装备" })
   } catch {

@@ -55,46 +55,43 @@ export async function POST(req: Request) {
   if (error) return error
 
   try {
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user!.userId },
-    })
-
-    if (!dbUser) {
-      return NextResponse.json({ error: "用户不存在" }, { status: 404 })
-    }
-
     const now = new Date()
 
-    // Check if already checked in today
-    if (dbUser.lastCheckIn && isSameDay(dbUser.lastCheckIn, now)) {
-      return NextResponse.json({ error: "今日已签到" }, { status: 400 })
-    }
+    const result = await prisma.$transaction(async (tx) => {
+      const dbUser = await tx.user.findUnique({
+        where: { id: user!.userId },
+      })
 
-    // Determine new streak days
-    let newStreakDays: number
-    if (dbUser.lastCheckIn === null) {
-      newStreakDays = 1
-    } else if (isYesterday(dbUser.lastCheckIn, now)) {
-      newStreakDays = dbUser.streakDays + 1
-    } else if (isBeforeYesterday(dbUser.lastCheckIn, now)) {
-      newStreakDays = 1
-    } else {
-      // Edge case: lastCheckIn is somehow in the future or today (shouldn't happen)
-      newStreakDays = 1
-    }
+      if (!dbUser) {
+        return { status: 404 as const, error: "用户不存在" }
+      }
 
-    // Calculate points earned: 5 + (streakDays - 1) * 5, cap at 50
-    const pointsEarned = Math.min(5 + (newStreakDays - 1) * 5, 50)
-    const expEarned = 10 // 签到固定10经验
+      // Check if already checked in today (inside transaction for atomicity)
+      if (dbUser.lastCheckIn && isSameDay(dbUser.lastCheckIn, now)) {
+        return { status: 400 as const, error: "今日已签到" }
+      }
 
-    // 渐进升级公式: 升至L+1需100×L经验
-    const newExperience = dbUser.experience + expEarned
-    const newLevel = Math.floor((1 + Math.sqrt(1 + 8 * newExperience / 100)) / 2)
-    const leveledUp = newLevel > dbUser.level
+      // Determine new streak days
+      let newStreakDays: number
+      if (dbUser.lastCheckIn === null) {
+        newStreakDays = 1
+      } else if (isYesterday(dbUser.lastCheckIn, now)) {
+        newStreakDays = dbUser.streakDays + 1
+      } else if (isBeforeYesterday(dbUser.lastCheckIn, now)) {
+        newStreakDays = 1
+      } else {
+        newStreakDays = 1
+      }
 
-    // Update user and create point log in a transaction
-    const [updatedUser] = await prisma.$transaction([
-      prisma.user.update({
+      // Calculate points earned: 5 + (streakDays - 1) * 5, cap at 50
+      const pointsEarned = Math.min(5 + (newStreakDays - 1) * 5, 50)
+      const expEarned = 10
+
+      const newExperience = dbUser.experience + expEarned
+      const newLevel = Math.floor((1 + Math.sqrt(1 + 8 * newExperience / 100)) / 2)
+      const leveledUp = newLevel > dbUser.level
+
+      await tx.user.update({
         where: { id: user!.userId },
         data: {
           points: { increment: pointsEarned },
@@ -103,21 +100,28 @@ export async function POST(req: Request) {
           lastCheckIn: now,
           level: newLevel,
         },
-      }),
-      prisma.pointLog.create({
+      })
+
+      await tx.pointLog.create({
         data: {
           userId: user!.userId,
           points: pointsEarned,
           reason: `每日签到 (连续${newStreakDays}天)`,
         },
-      }),
-    ])
+      })
+
+      return { status: 200 as const, pointsEarned, streakDays: newStreakDays, leveledUp, newLevel }
+    })
+
+    if (result.status === 400 || result.status === 404) {
+      return NextResponse.json({ error: result.error }, { status: result.status })
+    }
 
     return NextResponse.json({
       success: true,
-      pointsEarned,
-      streakDays: newStreakDays,
-      ...(leveledUp && { newLevel }),
+      pointsEarned: result.pointsEarned,
+      streakDays: result.streakDays,
+      ...(result.leveledUp && { newLevel: result.newLevel }),
     })
   } catch {
     return NextResponse.json({ error: "服务器错误" }, { status: 500 })

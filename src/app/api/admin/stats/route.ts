@@ -95,37 +95,33 @@ export async function GET(req: Request) {
       .slice(0, 10)
       .map(([category, count]) => ({ category, count }))
 
-    // 30-day daily stats
-    const dailyStats: { date: string; answers: number; newUsers: number; correctRate: number }[] = []
+    // 30-day daily stats — fire all queries in parallel
+    const dayRanges: { dateStr: string; gte: Date; lt: Date }[] = []
     for (let i = 29; i >= 0; i--) {
       const date = new Date(now)
       date.setHours(0, 0, 0, 0)
       date.setDate(date.getDate() - i)
-
       const nextDate = new Date(date)
       nextDate.setDate(nextDate.getDate() + 1)
-
-      const dateStr = date.toISOString().split("T")[0]
-
-      const [answers, newUsers, dayCorrect] = await Promise.all([
-        prisma.answerRecord.count({
-          where: { createdAt: { gte: date, lt: nextDate } },
-        }),
-        prisma.user.count({
-          where: { createdAt: { gte: date, lt: nextDate } },
-        }),
-        prisma.answerRecord.count({
-          where: { createdAt: { gte: date, lt: nextDate }, isCorrect: true },
-        }),
-      ])
-
-      dailyStats.push({
-        date: dateStr,
-        answers,
-        newUsers,
-        correctRate: answers > 0 ? Math.round((dayCorrect / answers) * 10000) / 100 : 0,
-      })
+      dayRanges.push({ dateStr: date.toISOString().split("T")[0], gte: date, lt: nextDate })
     }
+
+    const [answerCounts, userCounts, correctCounts] = await Promise.all([
+      Promise.all(dayRanges.map(d => prisma.answerRecord.count({ where: { createdAt: { gte: d.gte, lt: d.lt } } }))),
+      Promise.all(dayRanges.map(d => prisma.user.count({ where: { createdAt: { gte: d.gte, lt: d.lt } } }))),
+      Promise.all(dayRanges.map(d => prisma.answerRecord.count({ where: { createdAt: { gte: d.gte, lt: d.lt }, isCorrect: true } }))),
+    ])
+
+    const dailyStats = dayRanges.map((d, i) => {
+      const answers = answerCounts[i]
+      const dayCorrect = correctCounts[i]
+      return {
+        date: d.dateStr,
+        answers,
+        newUsers: userCounts[i],
+        correctRate: answers > 0 ? Math.round((dayCorrect / answers) * 10000) / 100 : 0,
+      }
+    })
 
     return NextResponse.json({
       totalUsers,

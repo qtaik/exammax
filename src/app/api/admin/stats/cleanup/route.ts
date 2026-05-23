@@ -33,10 +33,10 @@ export async function POST(req: Request) {
     let healedWq = 0
     if (userIds.length > 0) {
       const { selfHeal } = await import("@/lib/wrong-questions")
-      for (const { userId } of userIds) {
-        const result = await selfHeal(userId, retentionDays)
-        healedWq += result.healed
-      }
+      const results = await Promise.all(
+        userIds.map(({ userId }) => selfHeal(userId, retentionDays))
+      )
+      healedWq = results.reduce((sum, r) => sum + r.healed, 0)
     }
 
     return NextResponse.json({

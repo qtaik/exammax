@@ -3,6 +3,7 @@ import { compare } from "bcryptjs"
 import { z } from "zod"
 import jwt from "jsonwebtoken"
 import { prisma } from "@/lib/prisma"
+import { JWT_SECRET_FINAL } from "@/lib/auth"
 import redis from "@/lib/redis"
 
 const loginSchema = z.object({
@@ -10,7 +11,6 @@ const loginSchema = z.object({
   password: z.string().min(1, "请输入密码"),
 })
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 const MAX_ATTEMPTS = 10
 const LOCK_DURATION = 5 * 60 // 5 分钟（秒）
 
@@ -119,7 +119,7 @@ export async function POST(req: Request) {
         accountCodeId: user.accountCodeId,
         sv,
       },
-      JWT_SECRET,
+      JWT_SECRET_FINAL,
       { expiresIn: tokenExpiresIn }
     )
 
