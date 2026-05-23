@@ -10,7 +10,13 @@ ExamMax 是一个轻量级的选择题刷题框架系统，核心目标是通过
 
 V1.6 新增**师生交互考试体系**：教师可创建班级、发布指定题目的限时考试（配置切屏限制、每题时限、题目顺序），学生在全屏防作弊环境下逐题作答（每题独立倒计时、切屏检测自动交卷），教师可查看学生成绩统计与切屏日志。
 
-V2.0 重构**用户管理模块**：统一使用抽屉式面板管理用户，单管理员唯一约束（系统仅 admin 一个管理员），角色变更限制 STUDENT 与 TEACHER 互通，提供 7 条单一职责 API 覆盖用户名、密码、积分、经验值、徽章、称号的全方位管理。技术栈采用 Next.js 全栈方案（TypeScript + Tailwind CSS + Prisma + MySQL），通过 Docker Compose 打包实现一键部署。
+V2.0 重构**用户管理模块**：统一使用抽屉式面板管理用户，单管理员唯一约束（系统仅 admin 一个管理员），角色变更限制 STUDENT 与 TEACHER 互通，提供 7 条单一职责 API 覆盖用户名、密码、积分、经验值、徽章、称号的全方位管理。
+
+V2.1 升级**邀请码体系为账户码+班级码双模型**：将原有单表 InvitationCode 拆分为 AccountCode（账户码，绑定用户角色与有效期）和 ClassCode（班级码，绑定班级供学生加入），管理员/教师各自管理所属的码。
+
+V2.2 引入 **Redis 基础设施升级**：在已有登录限流基础上新增 JWT 登出黑名单（退出登录后 token 立即失效）和 **单终端登录机制**（sessionVersion 版本号写入 JWT，每次请求校验，新登录踢掉旧会话），前端配合全局 401 拦截和 30s 心跳检测，实现被踢即时跳转登录页。
+
+技术栈采用 Next.js 全栈方案（TypeScript + Tailwind CSS + Prisma + MySQL + Redis），通过 Docker Compose 打包实现一键部署。
 
 ---
 
@@ -32,6 +38,8 @@ V2.0 重构**用户管理模块**：统一使用抽屉式面板管理用户，�
 - **错题回顾需求：** 用户需要系统化的错题管理功能，而非简单的答题历史列表。通过权重机制追踪错题掌握程度，配合错题榜激励用户攻克薄弱环节
 - **师生交互考试需求（V1.6）：** 现有的模拟考试模式是学生自选分类/题数/时间自测，缺少教师主导的正式考试场景。教师需要能指定题目、设置截止时间、指派班级、监控学生作答行为（防作弊），学生需要全屏逐题作答并自动收卷，形成完整的"教师发布→学生作答→教师阅卷"闭环
 - **用户管理重构需求（V2.0）：** 当前管理后台用户列表仅支持角色修改，缺少对用户名、密码、积分、经验值、徽章、称号等细粒度操控能力。管理员需逐个用户管理时操作路径分散、体验低下。同时需强化"单管理员"设计约束，移除 ADMIN 角色的自由分配能力，将角色变更范围限定为 STUDENT 与 TEACHER 双向转换
+- **邀请码体系升级需求（V2.1）：** 原有单表 InvitationCode 混合承载"账户注册码"和"班级加入码"两类职责，字段耦合、逻辑模糊、过期策略混乱。需拆分为 AccountCode（账户准入码）和 ClassCode（班级邀请码）双模型，各司其职，独立管理生命周期
+- **安全升级需求（V2.2）：** 平台缺少登出后 token 失效机制（退出登录后旧 token 仍可用）和单终端登录保护（同一账户可同时在多个设备登录）。引入 Redis 实现 JWT 黑名单和 sessionVersion 版本号校验，前端配合全局 401 拦截，形成"后登录踢前登录"的完整安全链路
 
 ### 核心理念
 - **核心功能**：选择题刷题框架（xlsx 导入 + 三种刷题模式）
@@ -61,6 +69,8 @@ V2.0 重构**用户管理模块**：统一使用抽屉式面板管理用户，�
 4. **一键部署**：通过 Docker Compose 实现简单部署
 5. **建立师生交互考试体系（V1.6）**：班级管理、教师发布指定题目的正式考试、学生全屏防作弊逐题作答、教师查看成绩统计
 6. **重构用户管理模块（V2.0）**：抽屉式集中操控面板，单一职责 API，细粒度管理用户名/密码/积分/经验值/徽章/称号，实施单管理员唯一约束
+7. **升级邀请码体系为账户码+班级码双模型（V2.1）**：AccountCode 管理用户注册准入，ClassCode 管理班级加入邀请，独立模型、独立过期策略、独立 CRUD
+8. **升级安全基础设施（V2.2）**：JWT 登出黑名单（Redis Set），单终端登录（Redis sessionVersion + JWT sv 字段），前端全局 401 拦截 + 30s 心跳检测
 
 ### 明确不做（Non-Goals）
 - 不做学科概念（分类独立，不关联学科）
@@ -369,7 +379,7 @@ ExamMax
 | perQuestionTime | Json? | 每题实际用时 `{qId: seconds}` |
 | submittedAt | DateTime? | 实际交卷时间 |
 
-**修改 InvitationCode 模型（新增字段）：**
+**修改 InvitationCode 模型（V1.6 新增字段，V2.1 中已拆分为 AccountCode + ClassCode）：**
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | classId | String? | 关联班级（班级专属邀请码） |
@@ -825,6 +835,159 @@ V2.0 将废弃现有 `PATCH /api/admin/users` 端点（批量角色修改）。�
 - 保留 `GET /api/admin/users` 用于列表获取（无需改动）
 - 新增 7 条细分端点置于 `/api/admin/users/[id]/...` 路径下
 - 旧 PATCH 端点标记为 deprecated，待前端迁移完成后移除
+
+### 账户码与班级码双模型（V2.1）
+
+#### 重构目标
+
+将原有单表 InvitationCode 拆分为两个独立模型，解耦"账户注册"与"班级加入"两类完全不同的业务场景：
+
+| 维度 | AccountCode（账户码） | ClassCode（班级码） |
+|------|----------------------|---------------------|
+| **用途** | 控制用户注册准入 | 学生加入班级 |
+| **创建者** | ADMIN 管理员 | TEACHER 教师 |
+| **状态** | ACTIVE / EXPIRED / REVOKED | 无状态（一直有效，可手动删除） |
+| **有效期** | 支持 expiresAt，自动过期 | 无过期概念 |
+| **关联** | 绑定注册用户（one-to-one） | 关联班级（many-to-one） |
+| **使用次数** | 一次性（使用后绑定用户） | 可复用（多个学生使用同一码加入） |
+
+#### 数据模型
+
+**AccountCode（账户码）：**
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | String (CUID) | 主键 |
+| code | String (unique) | 账户码 |
+| status | Enum: ACTIVE / EXPIRED / REVOKED | 状态 |
+| role | Role (STUDENT / TEACHER) | 注册时授予的角色 |
+| expiresAt | DateTime? | 过期时间 |
+| createdById | String? | 创建者（ADMIN） |
+| boundUser | User? (one-to-one) | 绑定的注册用户 |
+
+**ClassCode（班级码）：**
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | String (CUID) | 主键 |
+| code | String (unique) | 班级邀请码 |
+| classId | String | 关联班级 |
+| createdById | String? | 创建者（TEACHER） |
+
+#### 关键行为
+
+**账户码过期机制：**
+- 每次查询账户码列表时，自动检查 `expiresAt <= now()` 的 ACTIVE 码，批量标记为 EXPIRED
+- 账户码过期后，已绑定的用户不受影响（仅阻止新用户使用该码注册）
+- 支持"延期"操作：管理员可修改 expiresAt 延长有效期，同时自动将 EXPIRED → ACTIVE
+
+**账户码吊销：**
+- REVOKED 状态的码不可用于注册
+- 已绑定用户的账户码被吊销后，用户下次请求时 `requireAuth` 会检测到并返回 401 "账户已失效"
+- REVOKED 状态可延期恢复为 ACTIVE
+
+**账户码删除：**
+- 未被绑定的账户码可直接删除
+- 已被用户绑定的账户码需先解绑用户才能删除
+
+**班级码前缀：**
+- 班级邀请码以 `CLASS-` 前缀开头，与账户码区分
+- 学生输入邀请码加入班级时，前端可识别前缀自动路由到对应 API
+
+#### API 端点
+
+| 方法 | 路径 | 说明 | 认证 |
+|------|------|------|------|
+| GET | `/api/admin/account-codes` | 管理员查看账户码列表（含分页、状态筛选） | ADMIN |
+| POST | `/api/admin/account-codes` | 管理员批量生成账户码 | ADMIN |
+| PUT | `/api/admin/account-codes/[id]` | 延期 / 吊销账户码 | ADMIN |
+| DELETE | `/api/admin/account-codes/[id]` | 删除未绑定的账户码 | ADMIN |
+| GET | `/api/classes/[id]/codes` | 教师查看班级邀请码列表 | TEACHER (owner) |
+| POST | `/api/classes/[id]/codes` | 教师生成班级邀请码 | TEACHER (owner) |
+| DELETE | `/api/classes/[id]/codes` | 教师删除班级邀请码 | TEACHER (owner) |
+| POST | `/api/classes/join` | 学生通过班级码加入班级 | STUDENT |
+
+#### 非 ADMIN 用户账户码校验
+
+`requireAuth` 中间件对非 ADMIN 用户强制检查账户码有效性：
+- 用户必须绑定有效 AccountCode（`accountCodeId` 非空）
+- AccountCode 状态不能为 REVOKED
+- AccountCode 不能已过期
+
+### Redis 安全基础设施升级（V2.2）
+
+#### 概述
+
+在已有 Redis（登录限流）基础上扩展两大安全能力：**JWT 登出黑名单**和**单终端登录**。
+
+#### JWT 登出黑名单
+
+```
+用户点击退出
+  │
+  ├──► Redis SADD blacklist:${jti} = "1"
+  │     └── TTL = JWT 剩余有效期（exp - iat）
+  │
+  └──► 后续任何请求携带该 token → requireAuth 检查 Redis
+        └── 命中黑名单 → 401 "认证失败"
+```
+
+**实现要点：**
+- 登出时后端将 token 加入 Redis Set `blacklist:{jti}`，TTL 设为 token 剩余有效期
+- `requireAuth` 每次校验时先查 `blacklist:{jti}` 是否存在
+- 黑名单过期后自动清除（无需手动管理）
+
+#### 单终端登录（Session Version）
+
+**核心原理：**
+```
+Redis: sessionVersion:{userId} = N (自增整数)
+
+登录时:
+  sv = redis.incr(sessionVersion:{userId})  // N+1
+  JWT payload = { ..., sv: N+1 }
+
+每次请求时:
+  currentSv = redis.get(sessionVersion:{userId})  // 当前最新版本
+  tokenSv = payload.sv ?? 0                        // token 中的版本
+  if (currentSv && currentSv != tokenSv) → 401 "账号已在其他设备登录"
+```
+
+**关键设计决策：**
+- 老 token 无 `sv` 字段时视为 `sv=0`，一律与 Redis 校验（不允许绕过）
+- sessionVersion 永不过期，始终保留 Redis 中
+- 退出登录时同样自增 sessionVersion（`incr`），使所有旧 token 失效
+
+**登录 API 变更：**
+- `POST /api/auth/login`：生成 JWT 时写入 `sv = await redis.incr(sessionVersion:{userId})`
+- `POST /api/auth/logout`：自增 sessionVersion + 将当前 token 加入黑名单
+
+**前端全局 401 拦截（`src/lib/api.ts`）：**
+```
+API 客户端封装 fetch
+  ├── 自动附加 Authorization: Bearer <token>
+  ├── 拦截 401 响应
+  │   └── error === "账号已在其他设备登录"
+  │       ├── 清除 localStorage token / user
+  │       └── window.location.replace("/login?reason=kicked")
+  └── 其他 4xx/5xx → throw Error 让调用方处理
+```
+
+**心跳检测（`src/app/dashboard/layout.tsx`）：**
+- 每 30 秒调用 `GET /api/user/me` 检查 session 有效性
+- 页面可见时运行，隐藏时暂停（`visibilitychange` 事件）
+- bfcache 恢复时重新检查（`pageshow` 事件，`event.persisted === true`）
+
+**登录页被踢提示：**
+- URL 参数 `?reason=kicked` 时显示琥珀色提示横幅："账号已在其他设备登录，请重新登录"
+- 使用 `location.replace()` 跳转（替换历史记录，防止返回键回到已失效页面）
+
+#### 前端迁移
+
+所有页面的 `fetch()` 调用逐步迁移到统一 API 客户端 `api.get/post/put/delete()`，自动享受全局 401 拦截能力。已迁移的关键页面：
+- `src/app/dashboard/layout.tsx` — 用户信息 + 登出
+- `src/app/dashboard/practice/page.tsx` — 刷题所有接口
+- `src/app/dashboard/exams/page.tsx` — 考试列表
+- `src/app/dashboard/leaderboard/page.tsx` — 排行榜
+- `src/app/dashboard/checkin/page.tsx` — 签到打卡
 
 ---
 
@@ -1576,6 +1739,9 @@ Acceptance Criteria:
 | **API Design** | 用户管理 API 单一职责 | 每条 API 仅负责一个属性维度 |
 | **Authorization** | 单管理员唯一约束 | 所有写入路径拒绝 ADMIN 角色分配 |
 | **UX** | 抽屉面板交互 | 展开/关闭动画 < 300ms，数据即时刷新 |
+| **Security** | JWT 登出黑名单 | 退出后 token 立即失效（Redis Set TTL = 剩余有效期） |
+| **Security** | 单终端登录 | sessionVersion 校验，旧会话被踢 < 30s（心跳周期内） |
+| **Security** | 前端 401 拦截 | 全局 API 客户端统一处理，被踢即时跳转（不依赖页面刷新） |
 
 ### Dependencies
 
@@ -1586,6 +1752,7 @@ Acceptance Criteria:
 | Tailwind CSS | 样式 |
 | shadcn/ui | UI 组件 |
 | MySQL 8.0 | 数据库 |
+| Redis 7 | 登录限流、JWT 黑名单、sessionVersion 单终端登录（V2.2） |
 | Docker | 部署 |
 | xlsx | Excel 解析 |
 | AnswerRecord 表 | 自愈机制的数据源 |
@@ -1616,6 +1783,11 @@ Acceptance Criteria:
 | 管理员误操作覆盖用户密码/积分造成争议 | Medium | Medium | 所有手动调整写入 PointLog 审计；密码重置记录操作日志 |
 | 等级直接覆盖与经验值脱节 | Low | Low | 等级设置严格映射为 experience = (level - 1) * 100，保持公式一致 |
 | 抽屉面板数据过多导致移动端体验不佳 | Low | Low | 抽屉内容分区折叠（accordion），移动端默认仅展开基本信息区 |
+| 账户码过期检测依赖每次查询触发，可能遗漏 | Low | Low | `requireAuth` 每次请求也检查，双路径保证 |
+| 账户码被吊销后已绑定用户仍可访问直到下次请求 | Low | Medium | `requireAuth` 每次请求实时检查 AccountCode 状态，最坏情况延迟 = 一次请求周期 |
+| Redis 不可用时单终端登录降级 | Low | High | `requireAuth` 中 Redis 查询失败时仅记录日志不阻断请求（保证可用性优先） |
+| sessionVersion 长期不清理持续增长 | Low | Low | Redis string 存储整数，4 字节即可；用户量级不大，长期可设 TTL 兜底 |
+| 前端 401 拦截与心跳检查竞态 | Low | Low | `kickRedirecting` 标志位防止重复跳转 |
 
 ---
 
@@ -1661,7 +1833,7 @@ Acceptance Criteria:
 - **防作弊作答：** 强制全屏（Fullscreen API），每题独立倒计时（切题暂停/恢复），切屏检测（visibilitychange + blur），超限自动交卷，localStorage 计时快照
 - **交卷成绩：** 确认交卷弹窗，提交答案+切屏日志+每题用时，交卷即出分（对错/解析），错题自动写入 WrongQuestion
 - **教师成绩查看：** 全班统计卡片（平均正确率/每题正确率分布），学生列表（按正确率排序），展开详情（逐题答案+用时），切屏日志时间线
-- **数据模型变更：** 新增 Class/ClassMember，修改 Task/TaskSubmission/InvitationCode
+- **数据模型变更：** 新增 Class/ClassMember，修改 Task/TaskSubmission，修改 InvitationCode（V2.1 中已拆分为 AccountCode + ClassCode）
 
 ### V2.0 范围 — 用户管理重构模块
 - **抽屉式操控面板：** 点击用户行 → 右侧抽屉展开，集中管理基本信息、密码、积分、经验、等级、徽章、称号
@@ -1672,12 +1844,28 @@ Acceptance Criteria:
 - **称号管理：** 已有称号列表 + 当前使用标记 + 设置/取消
 - **废弃旧端点：** 迁移完成后移除 PATCH /api/admin/users（批量角色修改）
 
-### V2.1 规划 — 增强功能
+### V2.1 范围 — 账户码与班级码双模型
+- **账户码（AccountCode）：** 管理员生成/延期/吊销/删除账户码，支持过期时间设置，自动过期检测（每次查询时标记 EXPIRED），已吊销/过期账户码阻止对应已绑定用户的后续 API 请求
+- **班级码（ClassCode）：** 教师为班级生成邀请码（CLASS- 前缀），支持多个学生复用同一码加入班级，学生端输入班级码加入
+- **数据模型：** 删除旧 InvitationCode 表，新增 AccountCode 和 ClassCode 两个独立模型
+- **非 ADMIN 强制绑定：** `requireAuth` 对非 ADMIN 用户校验账户码有效性（存在性、状态、过期时间）
+
+### V2.2 范围 — Redis 安全升级与单终端登录
+- **JWT 登出黑名单：** 退出登录时 token 加入 Redis Set（TTL = 剩余有效期），`requireAuth` 每次请求校验黑名单，保证退出后旧 token 立即失效
+- **单终端登录：** Redis `sessionVersion:{userId}` 自增计数器，登录时写入 JWT `sv` 字段，`requireAuth` 每次请求对比版本号，不匹配 → 401 "账号已在其他设备登录"
+- **老 token 兼容：** 无 `sv` 字段的老 token 视为 `sv=0`，一律校验（不允许绕过）
+- **前端全局 401 拦截：** 统一 API 客户端 `src/lib/api.ts` 封装 fetch，自动拦截 401 "账号已在其他设备登录" → 清除 localStorage + `location.replace("/login?reason=kicked")`
+- **心跳检测：** `layout.tsx` 每 30s 调用 `/api/user/me`，visibilitychange 暂停/恢复，bfcache 检测
+- **登录页被踢提示：** 检测 `?reason=kicked` 参数，显示琥珀色横幅
+- **页面迁移：** practice / exams / leaderboard / checkin 等关键页面的 fetch 调用迁移到统一 API 客户端
+
+### V2.3 规划 — 增强功能
 - 班级排行榜（按考试平均分排名）
 - 教师批量导入学生到班级
 - 考试题目随机化（每人题目顺序不同）
 - 考试时段限制（开始时间 + 截止时间，而非仅截止时间）
 - 考试通知（站内信/邮件提醒学生有新考试）
+- 数据统计页重构（更丰富的指标、图表可视化、日期筛选）
 
 ### Success Metrics
 
@@ -1701,10 +1889,10 @@ Docker Compose
 ├── app (Next.js) :3000
 │   ├── 前端：Tailwind CSS + shadcn/ui
 │   ├── API：Next.js API Routes
-│   ├── 认证：JWT
+│   ├── 认证：JWT（含 sv sessionVersion 字段）
 │   └── ORM：Prisma
 ├── db (MySQL) :3306
-└── redis (Redis) :6379 — 登录限流、缓存
+└── redis (Redis) :6379 — 登录限流、JWT 黑名单、sessionVersion 单终端登录
 ```
 
 ## Appendix B: 数据模型
@@ -1715,7 +1903,12 @@ User (用户)
 ├── role: STUDENT | TEACHER | ADMIN
 ├── points, experience, level
 ├── streakDays, lastCheckIn
-└── activeTitleId
+├── activeTitleId (当前使用称号)
+├── accountCodeId? (绑定账户码，V2.1)
+├── showBadgeFirst: Boolean (勋章在称号前)
+├── showBadgeText: Boolean (勋章显示文字)
+├── pityCounter: Int (抽奖保底计数)
+└── createdAt, updatedAt
 
 Category (分类) - 独立，无学科关联
 ├── id, name, description
@@ -1746,11 +1939,16 @@ ShopItem (商店物品)
 ├── price, description, icon
 └── userItems → UserItem[]
 
-InvitationCode (邀请码)
-├── id, code, role, status
-├── expiresAt, usedById, usedAt
-├── classId? (V1.6 新增：班级专属邀请码)
-├── createdById? (V1.6 新增：生成者)
+AccountCode (账户码) — V2.1 新增（替代旧 InvitationCode）
+├── id, code (unique), status: ACTIVE | EXPIRED | REVOKED
+├── role (STUDENT/TEACHER), expiresAt?
+├── createdById? (FK User，创建者 ADMIN)
+├── boundUser → User? (one-to-one 绑定)
+└── createdAt
+
+ClassCode (班级码) — V2.1 新增
+├── id, code (unique, CLASS- 前缀)
+├── classId (FK Class), createdById? (FK User)
 └── createdAt
 
 PointLog (积分记录)
@@ -1775,7 +1973,7 @@ Class (班级) — V1.6 新增
 ├── id, name, description?
 ├── teacherId (FK User)
 ├── members → ClassMember[]
-├── invitations → InvitationCode[]
+├── classCodes → ClassCode[]
 ├── tasks → Task[]
 └── createdAt
 
@@ -1817,4 +2015,4 @@ TaskSubmission (任务提交) — V1.6 扩展
 
 ---
 
-*PRD Version: 5.0 | Last Updated: 2026-05-23* | Changes: V2.0 — Added 用户管理重构模块: drawer-based user control panel, 7 single-responsibility APIs (PATCH users/[id], PUT users/[id]/password, PATCH users/[id]/points, PATCH users/[id]/experience, POST/DELETE users/[id]/badges, PUT/DELETE users/[id]/title), ADMIN singleton constraint, role change limited to STUDENT↔TEACHER, dual-mode (set/add) points/experience/level adjustment, badge grant/revoke, title set/unset, deprecation of old PATCH /api/admin/users endpoint. Previous: V1.6 师生交互考试模块.*
+*PRD Version: 6.0 | Last Updated: 2026-05-23* | Changes: V2.2 — Added Redis security infrastructure upgrade: JWT logout blacklist, single-session login (sessionVersion mechanism + global 401 interception + 30s heartbeat + bfcache handling), unified API client (src/lib/api.ts). V2.1 — Added AccountCode + ClassCode dual-model replacing legacy InvitationCode, non-admin mandatory account code binding. V2.0 — Added 用户管理重构模块. Previous: V1.6 师生交互考试模块.*
