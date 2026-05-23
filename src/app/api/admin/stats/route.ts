@@ -51,9 +51,9 @@ export async function GET(req: Request) {
       prisma.taskSubmission.count({ where: { status: "COMPLETED" } }),
       prisma.taskSubmission.count({ where: { status: "PENDING" } }),
       prisma.taskSubmission.count({ where: { status: "OVERDUE" } }),
-      prisma.pointLog.aggregate({ _sum: { points: true }, where: { reason: { not: "admin_manual_adjustment" } } }),
+      prisma.pointLog.aggregate({ _sum: { points: true }, where: { points: { gt: 0 } } }),
       prisma.userItem.count(),
-      prisma.pointLog.count({ where: { reason: "lottery" } }),
+      prisma.pointLog.count({ where: { reason: { startsWith: "抽奖" } } }),
       prisma.wrongQuestion.count({ where: { status: "ACTIVE" } }),
       prisma.wrongQuestion.groupBy({ by: ["userId"], where: { status: "ACTIVE" } }).then(r => r.length),
     ])
