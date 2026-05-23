@@ -16,6 +16,8 @@ V2.1 升级**邀请码体系为账户码+班级码双模型**：将原有单表 
 
 V2.2 引入 **Redis 基础设施升级**：在已有登录限流基础上新增 JWT 登出黑名单（退出登录后 token 立即失效）和 **单终端登录机制**（sessionVersion 版本号写入 JWT，每次请求校验，新登录踢掉旧会话），前端配合全局 401 拦截和 30s 心跳检测，实现被踢即时跳转登录页。
 
+V2.3 重构 **数据统计页**：将原有仅 4 张基础卡片 + 近 7 日简易表格的统计页升级为 8 张摘要卡片 + 6 张 recharts 可视化图表（双 Y 轴折线图、面积图、3 个环形图、柱状图、水平条形图）的运营仪表盘。新增 activeUsers、totalClasses、考试状态分布、totalPointsIssued、shopExchanges、lotteryCount、avgWrongPerUser、wrongByCategory TOP10、30 天 dailyStats 等后端指标。前端新增「清理过期记录」按钮，联动系统设置中的 answer_retention_days 参数，支持管理员一键清理超期 AnswerRecord。
+
 技术栈采用 Next.js 全栈方案（TypeScript + Tailwind CSS + Prisma + MySQL + Redis），通过 Docker Compose 打包实现一键部署。
 
 ---
@@ -40,12 +42,14 @@ V2.2 引入 **Redis 基础设施升级**：在已有登录限流基础上新增 
 - **用户管理重构需求（V2.0）：** 当前管理后台用户列表仅支持角色修改，缺少对用户名、密码、积分、经验值、徽章、称号等细粒度操控能力。管理员需逐个用户管理时操作路径分散、体验低下。同时需强化"单管理员"设计约束，移除 ADMIN 角色的自由分配能力，将角色变更范围限定为 STUDENT 与 TEACHER 双向转换
 - **邀请码体系升级需求（V2.1）：** 原有单表 InvitationCode 混合承载"账户注册码"和"班级加入码"两类职责，字段耦合、逻辑模糊、过期策略混乱。需拆分为 AccountCode（账户准入码）和 ClassCode（班级邀请码）双模型，各司其职，独立管理生命周期
 - **安全升级需求（V2.2）：** 平台缺少登出后 token 失效机制（退出登录后旧 token 仍可用）和单终端登录保护（同一账户可同时在多个设备登录）。引入 Redis 实现 JWT 黑名单和 sessionVersion 版本号校验，前端配合全局 401 拦截，形成"后登录踢前登录"的完整安全链路
+- **数据统计页重构需求（V2.3）：** 当前统计页（`/dashboard/admin/stats`）仅展示 4 张基础卡片（用户/题目/答题/正确率）+ 2 个分布进度条 + 近 7 日简易表格，缺乏可视化图表、缺少关键运营指标（活跃用户、考试状态追踪、积分发放、商店兑换、抽奖次数、错题分类分布），且无 30 天趋势数据。管理员无法从单一页面了解平台全貌，需升级为现代化运营仪表盘
 
 ### 核心理念
 - **核心功能**：选择题刷题框架（xlsx 导入 + 三种刷题模式）
 - **附加功能**：用户管理、奖励机制（积分/徽章/排行榜/签到/商店）、错题回顾与管理
 - **师生交互（V1.6）**：班级管理、教师发布考试、学生防作弊作答、教师成绩统计
 - **用户管理重构（V2.0）**：单管理员唯一、抽屉式操控面板、7条单一职责API
+- **数据统计重构（V2.3）**：8张摘要卡片 + 6张 recharts 图表 + 清理过期记录
 
 ### 约束与假设
 - **约束：** 个人开发，需要快速上线
@@ -71,6 +75,7 @@ V2.2 引入 **Redis 基础设施升级**：在已有登录限流基础上新增 
 6. **重构用户管理模块（V2.0）**：抽屉式集中操控面板，单一职责 API，细粒度管理用户名/密码/积分/经验值/徽章/称号，实施单管理员唯一约束
 7. **升级邀请码体系为账户码+班级码双模型（V2.1）**：AccountCode 管理用户注册准入，ClassCode 管理班级加入邀请，独立模型、独立过期策略、独立 CRUD
 8. **升级安全基础设施（V2.2）**：JWT 登出黑名单（Redis Set），单终端登录（Redis sessionVersion + JWT sv 字段），前端全局 401 拦截 + 30s 心跳检测
+9. **重构数据统计页为运营仪表盘（V2.3）**：8 张摘要卡片覆盖核心运营指标，6 张 recharts 可视化图表（双 Y 轴折线图、面积图、3 个环形图、柱状图、水平条形图），30 天趋势数据，分类错题排行榜，一键清理过期记录联动系统设置
 
 ### 明确不做（Non-Goals）
 - 不做学科概念（分类独立，不关联学科）
@@ -109,6 +114,9 @@ V2.2 引入 **Redis 基础设施升级**：在已有登录限流基础上新增 
 | **管理员（V2.0）** | 在抽屉面板中集中管理单个用户的所有属性和资产 | 消除"多个页面/弹窗操作同一用户"的分散感 | 右侧抽屉一站式操控：基本信息、密码、积分、经验、徽章、称号 |
 | **管理员（V2.0）** | 通过单一职责 API 精确操作用户单项属性 | 消除"一次修改需要更新整个用户对象"的耦合风险 | 每个 API 正交、幂等、可审计 |
 | **管理员（V2.0）** | 为用户灵活分配/调整积分、经验值、等级 | 消除"无法手动补偿/修正用户数值"的僵局 | 覆盖模式（设绝对值）+ 增量模式（加减）双模式 |
+| **管理员（V2.3）** | 在单一仪表盘页面查看平台全维度运营数据 | 消除"统计指标散落各处、缺乏可视化、无法洞察趋势"的盲区 | 8 张摘要卡片 + 6 张图表 + 30 天趋势，运营决策一目了然 |
+| **管理员（V2.3）** | 查看错题在各分类的分布排名，定位薄弱环节 | 消除"不知道哪个分类的题目错误率最高"的信息缺口 | 水平条形图 TOP10 展示，最易错分类一屏可见 |
+| **管理员（V2.3）** | 一键清理超过保留天数的过期答题记录 | 消除"手动清理数据库或等待定时任务"的运维负担 | 按钮直接联动 answer_retention_days 系统设置，即时执行 |
 
 ---
 
@@ -163,7 +171,10 @@ ExamMax
     ├── 用户管理
     ├── 邀请码管理
     ├── 系统设置（V1.5 新增）
-    └── 数据统计
+    └── 数据统计（V2.3 重构）
+        ├── 8 张摘要卡片（活跃用户 / 班级数 / 考试总数 / 完成率 / 积分发放 / 商店兑换 / 抽奖次数 / 人均错题）
+        ├── 6 张 recharts 图表（双Y轴折线图 / 面积图 / 3个环形图 / 柱状图 / 水平条形图）
+        └── 清理过期记录（联动 answer_retention_days）
 ```
 
 ### 三种刷题模式
@@ -991,6 +1002,289 @@ API 客户端封装 fetch
 
 ---
 
+### 数据统计页重构模块（V2.3）
+
+#### 重构目标
+
+当前统计页（`/dashboard/admin/stats`）仅展示 4 张基础卡片（总用户/总题目/总答题/正确率）+ 2 个分布进度条 + 近 7 日简易表格。缺少以下能力：
+
+1. **指标维度不足**：无活跃用户、班级数、考试状态追踪、积分发放总额、商店兑换次数、抽奖次数、人均错题数等运营指标
+2. **可视化缺失**：无趋势图、分布图、排行榜图表，数据解读效率低
+3. **时间范围短**：仅展示近 7 日数据，无法洞察 30 天以上趋势
+4. **无运维操作**：无法从统计页直接触发过期记录清理
+
+V2.3 将统计页彻底重构为**运营仪表盘（Dashboard）**，新增 10+ 后端指标、8 张摘要卡片、6 张 recharts 图表，同时提供「清理过期记录」按钮联动系统设置。
+
+#### 后端 API 重构
+
+**路由：** `GET /api/admin/stats`（替换现有实现，ADMIN only）
+
+**新增指标：**
+
+| 指标 | 字段名 | 计算逻辑 |
+|------|--------|----------|
+| 活跃用户数 | activeUsers | 近 30 天内有答题记录的去重用户数（`AnswerRecord.userId` DISTINCT） |
+| 班级总数 | totalClasses | `Class.count()` |
+| 考试总数 | totalExams | `Task.count()` |
+| 已完成考试数 | completedExams | `TaskSubmission.count({ status: COMPLETED })` |
+| 待考数 | pendingExams | `TaskSubmission.count({ status: PENDING })` |
+| 已逾期数 | overdueExams | `TaskSubmission.count({ status: OVERDUE })` |
+| 积分发放总额 | totalPointsIssued | `PointLog.aggregate({ _sum: { points } })`，仅统计正数记录 |
+| 商店兑换次数 | shopExchanges | `UserItem.count()` |
+| 抽奖总次数 | lotteryCount | `PointLog.count({ reason: "lottery" })` |
+| 人均错题数 | avgWrongPerUser | `WrongQuestion.aggregate({ _avg: { errorCount } })`，仅统计 ACTIVE 状态 |
+| 错题分类 TOP10 | wrongByCategory | 按 `Question.categoryId` 分组统计 WrongQuestion（ACTIVE）的 errorCount 总和，取前 10 |
+| 30天每日统计 | dailyStats | 近 30 天每日的答题数 + 新用户数（数组长度 30） |
+
+**保留原有指标：**
+- totalUsers、usersByRole（STUDENT/TEACHER/ADMIN）
+- totalQuestions、questionsByType（CHOICE/FILL/JUDGE）
+- totalAnswerRecords、correctRate
+
+**API 响应结构（V2.3）：**
+
+```json
+{
+  "totalUsers": 150,
+  "usersByRole": { "STUDENT": 120, "TEACHER": 25, "ADMIN": 5 },
+  "activeUsers": 98,
+  "totalQuestions": 2000,
+  "questionsByType": { "CHOICE": 1500, "FILL": 300, "JUDGE": 200 },
+  "totalAnswerRecords": 15000,
+  "correctRate": 72.5,
+  "totalClasses": 8,
+  "totalExams": 45,
+  "completedExams": 38,
+  "pendingExams": 5,
+  "overdueExams": 2,
+  "totalPointsIssued": 125000,
+  "shopExchanges": 67,
+  "lotteryCount": 234,
+  "avgWrongPerUser": 4.2,
+  "wrongByCategory": [
+    { "categoryName": "计算机网络", "errorCount": 156 },
+    { "categoryName": "数据结构", "errorCount": 132 }
+  ],
+  "dailyStats": [
+    { "date": "2026-04-24", "answers": 320, "newUsers": 5 },
+    { "date": "2026-05-23", "answers": 450, "newUsers": 8 }
+  ]
+}
+```
+
+**服务端实现要点：**
+- `activeUsers`：对 `AnswerRecord` 按 `userId` 去重，`createdAt >= 30天前`
+- `totalPointsIssued`：`PointLog` 中 `points > 0` 的记录求和（排除扣除/消费记录）
+- `lotteryCount`：`PointLog` 中 `reason === "lottery"` 的条数（每次抽奖写入一条 reason=lottery 的扣款记录）
+- `avgWrongPerUser`：统计 `WrongQuestion.status === ACTIVE` 的 `AVG(errorCount)`；若无数据返回 0
+- `wrongByCategory`：通过 `Question.categoryId` JOIN 分组，`_sum: { errorCount }`，取 TOP 10
+- `dailyStats`：循环 30 天，每日 `AnswerRecord` count + 新 `User` count（复用现有 7 天逻辑扩展为 30 天）
+
+#### 清理过期记录 API
+
+**路由：** `POST /api/admin/stats/cleanup`（ADMIN only）
+
+**功能：** 根据系统设置 `answer_retention_days` 的值，删除 `createdAt` 早于 N 天前的 `AnswerRecord`。
+
+**请求体：** 无（保留天数从 Setting 表读取）
+
+**响应：**
+```json
+{
+  "deletedCount": 1234,
+  "retentionDays": 30,
+  "message": "已清理 1234 条超过 30 天的答题记录"
+}
+```
+
+**服务端逻辑：**
+```
+1. 从 Setting 表读取 answer_retention_days 值（默认 30）
+2. 计算截止时间: cutoffDate = now() - retentionDays
+3. 执行: DELETE FROM AnswerRecord WHERE createdAt < cutoffDate
+4. 返回删除条数
+5. Warning: 不删除对应的 WrongQuestion（WrongQuestion 有独立的 self-heal 机制）
+```
+
+#### 前端页面：运营仪表盘
+
+**路由：** `/dashboard/admin/stats`（ADMIN only，替换现有页）
+
+**页面布局（三行式）：**
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  数据统计                                     [清理过期记录]      │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐               │
+│  │活跃用户  │ │班级总数  │ │考试总数  │ │考试完成率│               │
+│  │  98 人   │ │  8 个   │ │ 45 次   │ │ 84.4%  │               │
+│  └─────────┘ └─────────┘ └─────────┘ └─────────┘               │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐               │
+│  │积分发放  │ │商店兑换  │ │抽奖次数  │ │人均错题  │               │
+│  │ 125000  │ │ 67 次   │ │ 234 次  │ │  4.2   │               │
+│  └─────────┘ └─────────┘ └─────────┘ └─────────┘               │
+├──────────────────────────────────────────────────────────────────┤
+│  ┌──────────────────────────┐ ┌────────────────────────────────┐ │
+│  │ 双Y轴折线图              │ │ 面积图                         │ │
+│  │ (30天每日答题+新用户)     │ │ (30天累计趋势)                 │ │
+│  │ 左Y: 答题数 右Y: 新用户  │ │ 答题总量/活跃用户累计           │ │
+│  └──────────────────────────┘ └────────────────────────────────┘ │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐                        │
+│  │ 环形图    │ │ 环形图    │ │ 环形图    │                        │
+│  │用户角色   │ │考试状态   │ │错题状态   │                        │
+│  │分布       │ │分布       │ │分布       │                        │
+│  └──────────┘ └──────────┘ └──────────┘                        │
+├──────────────────────────────────────────────────────────────────┤
+│  ┌──────────────────────────┐ ┌────────────────────────────────┐ │
+│  │ 柱状图                    │ │ 水平条形图                      │ │
+│  │ 考试概览                  │ │ 错题分类 TOP10                  │ │
+│  │ (总/已完成/待考/已逾期)    │ │ (按 errorCount 降序)            │ │
+│  └──────────────────────────┘ └────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+#### 8 张摘要卡片
+
+| # | 卡片标题 | 数据字段 | 图标 | 描述行 |
+|---|---------|---------|------|--------|
+| 1 | 活跃用户 | activeUsers | Users | "近30天有答题的用户" |
+| 2 | 班级总数 | totalClasses | School | "平台班级数量" |
+| 3 | 考试总数 | totalExams | FileText | "已完成 {completedExams} / 待考 {pendingExams} / 逾期 {overdueExams}" |
+| 4 | 考试完成率 | completedExams/totalExams | CheckCircle | "{completedExams}/{totalExams} 次已完成" |
+| 5 | 积分发放 | totalPointsIssued | Coins | "平台累计发放积分" |
+| 6 | 商店兑换 | shopExchanges | ShoppingBag | "用户称号兑换总次数" |
+| 7 | 抽奖次数 | lotteryCount | Gift | "用户抽奖总次数" |
+| 8 | 人均错题 | avgWrongPerUser | AlertTriangle | "活跃错题人均权重" |
+
+**前端渲染模式（与现有卡片一致）：**
+```tsx
+const statCards = [
+  { title: "活跃用户", value: stats.activeUsers, icon: Users, description: "近30天有答题的用户" },
+  // ... 8 cards total
+]
+// grid: grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 (2 rows x 4 cols)
+```
+
+#### 6 张 recharts 图表
+
+**依赖：** `npm install recharts`（前端新增依赖）
+
+**1. 双 Y 轴折线图（30 天趋势）**
+
+- 数据源：`dailyStats`（30 天数组）
+- X 轴：日期（`date`）
+- 左 Y 轴：每日答题数（`answers`），柱状图（Bar）
+- 右 Y 轴：每日新用户（`newUsers`），折线图（Line）
+- recharts 组件：`<ComposedChart>` + `<Bar yAxisId="left">` + `<Line yAxisId="right">`
+
+**2. 面积图（30 天累计趋势）**
+
+- 数据源：`dailyStats`，前端计算每日累计值
+- X 轴：日期
+- Y 轴：累计答题数
+- 填充渐变（`<linearGradient>` + `<Area>`）
+- recharts 组件：`<AreaChart>` + `<Area type="monotone">` + `<CartesianGrid>` + `<Tooltip>`
+
+**3. 环形图 x3（分布占比）**
+
+- **环形图 A — 用户角色分布**
+  - 数据源：`usersByRole`
+  - 三项：STUDENT / TEACHER / ADMIN
+  - 颜色：primary / secondary / destructive
+
+- **环形图 B — 考试状态分布**
+  - 数据源：`completedExams` / `pendingExams` / `overdueExams`
+  - 三项：已完成 / 待考 / 已逾期
+  - 颜色：green / yellow / red
+
+- **环形图 C — 错题状态分布**
+  - 新增查询：`WrongQuestion` 按 status 分组计数（ACTIVE vs COMPLETED）
+  - 颜色：orange / emerald
+
+- recharts 组件：`<PieChart>` + `<Pie innerRadius={60} outerRadius={80}>` + `<Cell>` + `<Legend>` + `<Tooltip>`
+- 中心显示总数（自定义 label）
+
+**4. 柱状图（考试概览）**
+
+- 数据源：4 个值（总考试 / 已完成 / 待考 / 已逾期）
+- X 轴：类别
+- Y 轴：数量
+- recharts 组件：`<BarChart>` + `<Bar>` + `<CartesianGrid>` + `<XAxis>` + `<YAxis>` + `<Tooltip>`
+
+**5. 水平条形图（错题分类 TOP10）**
+
+- 数据源：`wrongByCategory`（TOP 10 数组）
+- Y 轴：分类名（categoryName），按 errorCount 降序
+- X 轴：errorCount
+- recharts 组件：`<BarChart layout="vertical">` + `<Bar>` + `<XAxis type="number">` + `<YAxis type="category" dataKey="categoryName">`
+
+**图表响应式：**
+- 所有图表外层容器 `width="100%"` + `height={300}`
+- 使用 `<ResponsiveContainer>` 包裹每个图表
+- 移动端（< 768px）：图表 width 100%，height 250，卡片和图表单列排列
+
+#### 清理过期记录按钮
+
+**位置：** 页面顶部标题行右侧（与「数据统计」标题同行）
+
+**交互：**
+```
+[清理过期记录] 按钮
+  │
+  ├── 点击 → 弹出确认对话框
+  │     标题："清理过期答题记录"
+  │     内容："将删除 {retentionDays} 天前的所有答题记录，此操作不可撤销。当前保留天数为 {retentionDays} 天（可在系统设置中修改）。确定继续？"
+  │     按钮：[取消] [确认清理]
+  │
+  ├── 确认 → 调用 POST /api/admin/stats/cleanup
+  │     ├── 成功 → Toast 提示 "已清理 X 条超过 N 天的答题记录"
+  │     │          自动刷新页面数据
+  │     └── 失败 → Toast 提示 "清理失败: {error}"
+  │
+  └── 取消 → 关闭对话框
+```
+
+**UI 细节：**
+- 按钮使用 `variant="outline"` + `destructive` 色调（橙色/红色边框）
+- 图标：`<Trash2 className="h-4 w-4 mr-1" />`
+- 读取系统设置：前端先调 GET `/api/admin/settings` 获取 `answer_retention_days` 值，用于对话框文案
+- 清理完成后自动刷新统计数据和图表
+
+#### 前端组件树
+
+```
+/dashboard/admin/stats/page.tsx
+├── StatsHeader（标题 + 清理过期记录按钮）
+├── SummaryCards（8 张卡片，2 行 x 4 列响应式网格）
+├── ChartsRow1
+│   ├── DualYAxisChart（双 Y 轴折线图：答题+新用户 30 天趋势）
+│   └── AreaTrendChart（面积图：累计答题趋势）
+├── ChartsRow2
+│   ├── DonutChart（用户角色分布）
+│   ├── DonutChart（考试状态分布）
+│   └── DonutChart（错题状态分布）
+├── ChartsRow3
+│   ├── BarChart（考试概览：总数/已完成/待考/逾期）
+│   └── HorizontalBarChart（错题分类 TOP10）
+└── CleanupDialog（清理过期记录确认弹窗）
+```
+
+#### 响应式设计
+
+| 断点 | 布局 |
+|------|------|
+| >= 1280px | 双列图表，4 列卡片 |
+| >= 768px | 单列图表，2 列卡片 |
+| < 768px | 单列图表，1 列卡片（堆叠） |
+
+#### 与现有系统设置联动
+
+- 清理过期记录按钮读取 `Setting.key === "answer_retention_days"` 确定保留天数
+- 在确认对话框中展示当前保留天数
+- 建议：清理操作本身也写入 PointLog 或专门的审计表（`reason: "admin_cleanup_answer_records"`），以便追溯
+
+---
+
 ### User Stories
 
 #### P0 -- Must Have（核心功能）
@@ -1302,15 +1596,14 @@ Acceptance Criteria:
 - [ ] Given 管理员编辑/删除称号, Then 支持修改和删除
 ```
 
-**US-15: 管理后台 -- 数据统计**
+**US-15: 管理后台 -- 数据统计（V2.3 已重构，本 US 已被 US-43 至 US-50 替代）**
 ```
 As a 管理员,
 I want 查看平台数据统计,
 so that 我能了解运营状况。
 
 Acceptance Criteria:
-- [ ] Given 管理员进入统计页, Then 显示核心指标（用户数、答题数、正确率）
-- [ ] Given 统计页, Then 显示趋势图
+- [ ] Given 管理员进入统计页, Then 显示核心指标和可视化图表（详见 US-43 至 US-50）
 ```
 
 #### P1 -- Should Have（错题回顾模块 V1.5）
@@ -1719,6 +2012,159 @@ Acceptance Criteria:
 - [ ] Given 新 API 路径结构 /api/admin/users/[id]/*, Then 所有端点均需 ADMIN 认证
 ```
 
+#### P0 -- Must Have（数据统计重构 V2.3）
+
+**US-43: 运营仪表盘摘要卡片**
+```
+As a 管理员,
+I want 在统计页顶部看到 8 张摘要卡片覆盖核心运营指标,
+so that 我能一屏了解平台整体运营状况。
+
+Acceptance Criteria:
+- [ ] Given 管理员进入 /dashboard/admin/stats, Then 顶部显示 2 行 x 4 列卡片网格
+- [ ] Given 卡片 1-4, Then 分别显示：活跃用户（activeUsers + "近30天有答题的用户"）、班级总数（totalClasses + "平台班级数量"）、考试总数（totalExams + "已完成X / 待考Y / 逾期Z"）、考试完成率（百分比 + "X/Y次已完成"）
+- [ ] Given 卡片 5-8, Then 分别显示：积分发放（totalPointsIssued + "平台累计发放积分"）、商店兑换（shopExchanges + "用户称号兑换总次数"）、抽奖次数（lotteryCount + "用户抽奖总次数"）、人均错题（avgWrongPerUser + "活跃错题人均权重"）
+- [ ] Given 数据加载中, Then 卡片显示骨架屏（skeleton）占位
+- [ ] Given API 返回错误, Then 显示错误提示并保留上一次成功数据
+- [ ] Given 响应式, Then >=1024px 4列、>=768px 2列、<768px 1列
+```
+
+**US-44: 双Y轴折线图 — 30天每日趋势**
+```
+As a 管理员,
+I want 在一个图表中同时查看近30天每日答题数（柱状图）和新注册用户数（折线图）,
+so that 我能对比答题活跃度和用户增长趋势。
+
+Acceptance Criteria:
+- [ ] Given 统计页第二行左侧, Then 渲染双Y轴折线图
+- [ ] Given 左Y轴, Then 显示每日答题数（Bar），刻度自动适配
+- [ ] Given 右Y轴, Then 显示每日新用户数（Line），刻度自动适配
+- [ ] Given X轴, Then 显示 30 天日期（MM-DD 格式），自动间隔避免重叠
+- [ ] Given hover 数据点, Then Tooltip 显示日期、答题数、新用户数
+- [ ] Given 数据为空, Then 显示"暂无数据"空状态占位
+- [ ] Given 移动端, Then 图表 height 250px，单列全宽
+```
+
+**US-45: 面积图 — 30天累计趋势**
+```
+As a 管理员,
+I want 查看近30天累计答题数的面积填充趋势图,
+so that 我能直观感受平台答题总量的增长态势。
+
+Acceptance Criteria:
+- [ ] Given 统计页第二行右侧, Then 渲染面积图（AreaChart）
+- [ ] Given 面积图, Then X轴为日期、Y轴为累计答题数、填充渐变色（primary tone）
+- [ ] Given hover, Then Tooltip 显示日期和当日累计值
+- [ ] Given 数据源 dailyStats, Then 前端计算累计值（cumulative sum）
+- [ ] Given 数据为空, Then 显示"暂无数据"
+```
+
+**US-46: 三个环形图 — 用户角色 / 考试状态 / 错题状态分布**
+```
+As a 管理员,
+I want 通过三个环形图查看用户角色分布、考试状态分布和错题状态分布,
+so that 我能快速感知各维度的占比结构。
+
+Acceptance Criteria:
+- [ ] Given 统计页第三行, Then 并排显示 3 个环形图（PieChart donut）
+- [ ] Given 环形图 A, Then 显示用户角色分布（STUDENT/TEACHER/ADMIN），颜色分别为 primary/secondary/destructive
+- [ ] Given 环形图 B, Then 显示考试状态分布（已完成/待考/已逾期），颜色分别为 green/yellow/red
+- [ ] Given 环形图 C, Then 显示错题状态分布（ACTIVE/COMPLETED），颜色分别为 orange/emerald
+- [ ] Given 每个环形图, Then 中心显示总数（自定义 label），外部显示图例（Legend）
+- [ ] Given hover 扇区, Then Tooltip 显示类别名、数量、百分比
+- [ ] Given 某项数据为 0, Then 该扇区不显示或显示 0%
+- [ ] Given 移动端, Then 3 个环形图垂直堆叠排列
+```
+
+**US-47: 柱状图 — 考试概览**
+```
+As a 管理员,
+I want 通过柱状图对比考试总数、已完成、待考、已逾期的数量,
+so that 我能快速了解考试模块的整体状态。
+
+Acceptance Criteria:
+- [ ] Given 统计页第四行左侧, Then 渲染柱状图（BarChart）
+- [ ] Given X轴, Then 4 个类别：考试总数、已完成、待考、已逾期
+- [ ] Given Y轴, Then 数量
+- [ ] Given 每个柱子, Then 使用不同颜色区分（primary / green / yellow / red）
+- [ ] Given hover, Then Tooltip 显示类别名和数量
+- [ ] Given 无考试数据, Then 4 个柱子均为 0
+```
+
+**US-48: 水平条形图 — 错题分类 TOP10**
+```
+As a 管理员,
+I want 通过水平条形图查看错题数量最多的前 10 个分类,
+so that 我能定位哪些知识领域是学生的薄弱环节，为题库优化提供依据。
+
+Acceptance Criteria:
+- [ ] Given 统计页第四行右侧, Then 渲染水平条形图（BarChart layout="vertical"）
+- [ ] Given Y轴, Then 显示分类名（前 10，按 errorCount 降序），长名称自动截断 + Tooltip 全称
+- [ ] Given X轴, Then errorCount 数量
+- [ ] Given 每个条形, Then 使用渐变色（如 blue gradient），最长条最深色
+- [ ] Given 不足 10 个分类, Then 显示实际数量
+- [ ] Given 无错题数据, Then 显示"暂无错题数据"
+```
+
+**US-49: 清理过期答题记录**
+```
+As a 管理员,
+I want 在统计页一键清理超过保留天数的过期答题记录,
+so that 我能控制数据库增长，无需手动操作数据库或等待定时任务。
+
+Acceptance Criteria:
+- [ ] Given 统计页顶部标题行右侧, Then 显示 [清理过期记录] 按钮（outline + destructive 色调 + Trash2 图标）
+- [ ] Given 点击按钮, Then 弹出确认对话框，显示："将删除 N 天前的所有答题记录，此操作不可撤销。当前保留天数为 N 天（可在系统设置中修改）。确定继续？"
+- [ ] Given N 值, Then 从 GET /api/admin/settings 读取 answer_retention_days（默认 30）
+- [ ] Given 确认清理, Then 调用 POST /api/admin/stats/cleanup
+- [ ] Given 清理成功, Then Toast 提示"已清理 X 条超过 N 天的答题记录"，自动刷新页面数据
+- [ ] Given 清理失败, Then Toast 提示错误原因
+- [ ] Given 清理结果 deletedCount=0, Then Toast 提示"没有需要清理的过期记录"
+- [ ] Given 清理操作, Then 不删除对应的 WrongQuestion 记录（WrongQuestion 由 self-heal 管理）
+```
+
+**US-50: 30天数据范围扩展**
+```
+As a 管理员,
+I want 统计页的时间范围从 7 天扩展到 30 天,
+so that 我能观察更长时间维度的趋势变化。
+
+Acceptance Criteria:
+- [ ] Given API GET /api/admin/stats, Then dailyStats 返回 30 天数组（原 7 天）
+- [ ] Given 双Y轴折线图, Then X 轴显示 30 个日期点
+- [ ] Given 面积图, Then 累计 30 天数据
+- [ ] Given 某天无数据, Then answers 和 newUsers 均为 0，图表正常渲染
+```
+
+#### P1 -- Should Have（数据统计 V2.3）
+
+**US-51: 图表日期范围筛选器**
+```
+As a 管理员,
+I want 通过日期范围选择器筛选图表的时间区间（7天/14天/30天/自定义）,
+so that 我能灵活查看不同时间段的统计数据。
+
+Acceptance Criteria:
+- [ ] Given 统计页顶部, Then 显示日期范围下拉选择器：[近7天 ▼] [近14天] [近30天] [自定义]
+- [ ] Given 选择"近7天", Then 所有图表数据切换为近 7 天
+- [ ] Given 选择"自定义", Then 弹出日期范围选择器（from - to）
+- [ ] Given 切换范围, Then API 请求带 dateRange 参数重新获取数据
+- [ ] Given 自定义范围 > 90 天, Then 提示"时间范围不能超过 90 天"
+```
+
+**US-52: 图表导出为图片**
+```
+As a 管理员,
+I want 将统计页的图表导出为 PNG 图片,
+so that 我能将数据截图分享或存档。
+
+Acceptance Criteria:
+- [ ] Given 每个图表卡片右上角, Then 显示下载图标按钮
+- [ ] Given 点击下载, Then 调用 recharts 的 toDataURL 导出为 PNG 并触发浏览器下载
+- [ ] Given 导出, Then 文件名格式："{图表标题}_{日期}.png"
+- [ ] Given 导出成功, Then Toast 提示"图表已下载"
+```
+
 ### Non-Functional Requirements
 
 | Category | Requirement | Target |
@@ -1742,6 +2188,11 @@ Acceptance Criteria:
 | **Security** | JWT 登出黑名单 | 退出后 token 立即失效（Redis Set TTL = 剩余有效期） |
 | **Security** | 单终端登录 | sessionVersion 校验，旧会话被踢 < 30s（心跳周期内） |
 | **Security** | 前端 401 拦截 | 全局 API 客户端统一处理，被踢即时跳转（不依赖页面刷新） |
+| **Performance** | 统计 API 响应（含 30 天数据 + 10+ 分组聚合） | < 1.5s |
+| **Performance** | 图表首屏渲染（6 张 recharts） | < 2s |
+| **Accessibility** | 图表颜色无障碍 | 环形图颜色对比度 >= 3:1，除颜色外使用标签区分 |
+| **UX** | 清理过期记录确认 | 操作前弹窗确认，展示保留天数，防止误操作 |
+| **Data Integrity** | 清理过期记录不影响错题 | DELETE AnswerRecord 时不级联删除 WrongQuestion |
 
 ### Dependencies
 
@@ -1765,6 +2216,10 @@ Acceptance Criteria:
 | 现有 GET /api/admin/users | V2.0 列表获取复用，无需改动 |
 | 现有 Badge / ShopItem / UserBadge / UserItem 模型 | 徽章和称号管理依赖现有数据模型 |
 | 现有 PointLog 模型 | 积分/经验手动调整需写入审计记录 |
+| recharts | V2.3 前端图表库，需新增 npm 依赖 |
+| 现有 GET /api/admin/settings | 清理过期记录需要读取 answer_retention_days |
+| 现有 WrongQuestion 模型 | 错题分类 TOP10 统计 + 环形图 C 数据源 |
+| 现有 Class / Task / TaskSubmission 模型 | 考试相关统计指标数据源 |
 
 ### Risks & Mitigations
 
@@ -1788,6 +2243,13 @@ Acceptance Criteria:
 | Redis 不可用时单终端登录降级 | Low | High | `requireAuth` 中 Redis 查询失败时仅记录日志不阻断请求（保证可用性优先） |
 | sessionVersion 长期不清理持续增长 | Low | Low | Redis string 存储整数，4 字节即可；用户量级不大，长期可设 TTL 兜底 |
 | 前端 401 拦截与心跳检查竞态 | Low | Low | `kickRedirecting` 标志位防止重复跳转 |
+| 30 天 dailyStats 循环 30 次独立 DB 查询慢 | Medium | Medium | 使用 Prisma 批量查询优化（一次查 30 天 range 再内存分组）；或新增 `GROUP BY DATE(createdAt)` 聚合查询 |
+| dailyStats 循环查询在每新增一个聚合维度时变慢 | Low | Low | 仅查询 answer 和 newUser 两个维度，查询数固化；后续扩展可改为 materialized view |
+| 清理过期记录误删有用数据 | Low | High | 按钮前弹窗确认，默认读取系统设置保留天数，记录操作审计；不级联删除 WrongQuestion |
+| recharts 服务端渲染（SSR）报错 | Medium | Medium | 图表组件使用 `dynamic(() => import(...), { ssr: false })` 懒加载，禁用 SSR |
+| 环形图 B（考试状态）数据全 0 时渲染异常 | Low | Low | 前端判断总量为 0 时显示"暂无考试数据"空状态，不渲染环形图 |
+| 水平条形图分类名过长溢出 | Low | Low | 前端截断 Y 轴 label 为 8 字符 + "..."，Tooltip 显示全名 |
+| 清理过期记录与 self-heal 同时调用导致数据竞争 | Low | Low | 前端限制：同一按钮 loading 状态防止重复点击；后端单次同步执行 |
 
 ---
 
@@ -1859,13 +2321,20 @@ Acceptance Criteria:
 - **登录页被踢提示：** 检测 `?reason=kicked` 参数，显示琥珀色横幅
 - **页面迁移：** practice / exams / leaderboard / checkin 等关键页面的 fetch 调用迁移到统一 API 客户端
 
-### V2.3 规划 — 增强功能
-- 班级排行榜（按考试平均分排名）
-- 教师批量导入学生到班级
-- 考试题目随机化（每人题目顺序不同）
-- 考试时段限制（开始时间 + 截止时间，而非仅截止时间）
-- 考试通知（站内信/邮件提醒学生有新考试）
-- 数据统计页重构（更丰富的指标、图表可视化、日期筛选）
+### V2.3 范围 — 数据统计页重构
+- **后端指标扩展：** activeUsers（近30天活跃用户）、totalClasses（班级总数）、totalExams / completedExams / pendingExams / overdueExams（考试状态分布）、totalPointsIssued（积分发放总额）、shopExchanges（商店兑换次数）、lotteryCount（抽奖次数）、avgWrongPerUser（人均错题权重）、wrongByCategory TOP10（错题分类排行）
+- **时间范围扩展：** dailyStats 从 7 天扩展为 30 天
+- **8 张摘要卡片：** 活跃用户、班级总数、考试总数、考试完成率、积分发放、商店兑换、抽奖次数、人均错题（2 行 x 4 列，响应式降级为 2 列 / 1 列）
+- **6 张 recharts 图表：**
+  1. 双 Y 轴折线图（ComposedChart：左Y答题数 Bar + 右Y新用户 Line，30天）
+  2. 面积图（AreaChart：累计答题趋势，30天）
+  3. 环形图 A — 用户角色分布（PieChart donut：STUDENT/TEACHER/ADMIN）
+  4. 环形图 B — 考试状态分布（PieChart donut：已完成/待考/已逾期）
+  5. 环形图 C — 错题状态分布（PieChart donut：ACTIVE/COMPLETED）
+  6. 柱状图 + 水平条形图（BarChart：考试概览 + layout="vertical" 错题分类 TOP10）
+- **清理过期记录：** 按钮联动 answer_retention_days 系统设置，确认弹窗后调用 POST /api/admin/stats/cleanup 批量删除，不级联 WrongQuestion
+- **前端依赖：** 新增 recharts 图表库
+- **P1 增强：** 日期范围筛选器（7/14/30天/自定义）、图表导出为 PNG
 
 ### Success Metrics
 
@@ -1879,6 +2348,9 @@ Acceptance Criteria:
 | 用户管理 API 可用性（V2.0） | 7 条 API 全部通过验收测试，成功率 100% |
 | 抽屉面板渲染性能（V2.0） | 打开动画 < 300ms，数据加载 < 1s |
 | 单管理员约束（V2.0） | 0 起违规的 ADMIN 角色新建/提升事件 |
+| 统计 API 响应时间（V2.3） | < 1.5s（含 30 天 + 10+ 聚合指标） |
+| 图表渲染完成（V2.3） | 6 张图表全部渲染 < 2s |
+| 清理过期记录成功率（V2.3） | 100%（操作正确执行并返回删除条数） |
 
 ---
 
@@ -2015,4 +2487,4 @@ TaskSubmission (任务提交) — V1.6 扩展
 
 ---
 
-*PRD Version: 6.0 | Last Updated: 2026-05-23* | Changes: V2.2 — Added Redis security infrastructure upgrade: JWT logout blacklist, single-session login (sessionVersion mechanism + global 401 interception + 30s heartbeat + bfcache handling), unified API client (src/lib/api.ts). V2.1 — Added AccountCode + ClassCode dual-model replacing legacy InvitationCode, non-admin mandatory account code binding. V2.0 — Added 用户管理重构模块. Previous: V1.6 师生交互考试模块.*
+*PRD Version: 7.0 | Last Updated: 2026-05-23* | Changes: V2.3 — Added 数据统计页重构: 8 summary cards + 6 recharts charts (dual Y-axis line, area, 3 donut, bar, horizontal bar), 10+ new backend metrics (activeUsers, totalClasses, exam status distribution, totalPointsIssued, shopExchanges, lotteryCount, avgWrongPerUser, wrongByCategory TOP10, 30-day dailyStats), cleanup expired records button linked to answer_retention_days. V2.2 — Added Redis security infrastructure upgrade. V2.1 — Added AccountCode + ClassCode dual-model. V2.0 — Added 用户管理重构模块. Previous: V1.6 师生交互考试模块.*
