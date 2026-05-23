@@ -8,7 +8,9 @@
 
 ExamMax 是一个轻量级的选择题刷题框架系统，核心目标是通过 xlsx 导入选择题，提供随机抽题、按个答题、考试三种刷题模式，帮助用户加强对题目的熟练度。平台采用分类管理（独立分类，无学科概念），支持完整的用户管理、积分/徽章/排行榜/打卡等奖励机制、错题回顾与管理（权重机制 + 错题榜）、虚拟商店兑换功能。通过邀请码准入机制控制用户注册，管理员可通过后台管理题库、用户、系统设置和数据统计。
 
-V1.6 新增**师生交互考试体系**：教师可创建班级、发布指定题目的限时考试（配置切屏限制、每题时限、题目顺序），学生在全屏防作弊环境下逐题作答（每题独立倒计时、切屏检测自动交卷），教师可查看学生成绩统计与切屏日志。技术栈采用 Next.js 全栈方案（TypeScript + Tailwind CSS + Prisma + MySQL），通过 Docker Compose 打包实现一键部署。
+V1.6 新增**师生交互考试体系**：教师可创建班级、发布指定题目的限时考试（配置切屏限制、每题时限、题目顺序），学生在全屏防作弊环境下逐题作答（每题独立倒计时、切屏检测自动交卷），教师可查看学生成绩统计与切屏日志。
+
+V2.0 重构**用户管理模块**：统一使用抽屉式面板管理用户，单管理员唯一约束（系统仅 admin 一个管理员），角色变更限制 STUDENT 与 TEACHER 互通，提供 7 条单一职责 API 覆盖用户名、密码、积分、经验值、徽章、称号的全方位管理。技术栈采用 Next.js 全栈方案（TypeScript + Tailwind CSS + Prisma + MySQL），通过 Docker Compose 打包实现一键部署。
 
 ---
 
@@ -29,11 +31,13 @@ V1.6 新增**师生交互考试体系**：教师可创建班级、发布指定�
 - 通过奖励机制（积分、徽章、排行榜）提升刷题动力
 - **错题回顾需求：** 用户需要系统化的错题管理功能，而非简单的答题历史列表。通过权重机制追踪错题掌握程度，配合错题榜激励用户攻克薄弱环节
 - **师生交互考试需求（V1.6）：** 现有的模拟考试模式是学生自选分类/题数/时间自测，缺少教师主导的正式考试场景。教师需要能指定题目、设置截止时间、指派班级、监控学生作答行为（防作弊），学生需要全屏逐题作答并自动收卷，形成完整的"教师发布→学生作答→教师阅卷"闭环
+- **用户管理重构需求（V2.0）：** 当前管理后台用户列表仅支持角色修改，缺少对用户名、密码、积分、经验值、徽章、称号等细粒度操控能力。管理员需逐个用户管理时操作路径分散、体验低下。同时需强化"单管理员"设计约束，移除 ADMIN 角色的自由分配能力，将角色变更范围限定为 STUDENT 与 TEACHER 双向转换
 
 ### 核心理念
 - **核心功能**：选择题刷题框架（xlsx 导入 + 三种刷题模式）
 - **附加功能**：用户管理、奖励机制（积分/徽章/排行榜/签到/商店）、错题回顾与管理
 - **师生交互（V1.6）**：班级管理、教师发布考试、学生防作弊作答、教师成绩统计
+- **用户管理重构（V2.0）**：单管理员唯一、抽屉式操控面板、7条单一职责API
 
 ### 约束与假设
 - **约束：** 个人开发，需要快速上线
@@ -42,6 +46,9 @@ V1.6 新增**师生交互考试体系**：教师可创建班级、发布指定�
 - **约束（V1.6）：** 防作弊全屏机制依赖浏览器 Fullscreen API，无法防止物理作弊（如使用第二台设备）
 - **假设：** 用户通过 xlsx 文件批量导入题目
 - **假设（V1.6）：** 教师已有题库基础，可直接从题库选题发布考试
+- **约束（V2.0）：** 系统仅允许存在一个 ADMIN 用户（username=admin），不允许管理员创建或提升其他用户为 ADMIN
+- **约束（V2.0）：** 角色变更仅允许 STUDENT 与 TEACHER 之间的双向转换，ADMIN 不参与角色流转
+- **假设（V2.0）：** 管理员手动覆盖用户密码时无需验证旧密码，直接替换为新密码
 
 ---
 
@@ -53,6 +60,7 @@ V1.6 新增**师生交互考试体系**：教师可创建班级、发布指定�
 3. **建立奖励机制**：积分、徽章、排行榜、签到、商店等附加功能
 4. **一键部署**：通过 Docker Compose 实现简单部署
 5. **建立师生交互考试体系（V1.6）**：班级管理、教师发布指定题目的正式考试、学生全屏防作弊逐题作答、教师查看成绩统计
+6. **重构用户管理模块（V2.0）**：抽屉式集中操控面板，单一职责 API，细粒度管理用户名/密码/积分/经验值/徽章/称号，实施单管理员唯一约束
 
 ### 明确不做（Non-Goals）
 - 不做学科概念（分类独立，不关联学科）
@@ -88,6 +96,9 @@ V1.6 新增**师生交互考试体系**：教师可创建班级、发布指定�
 | **学生（V1.6）** | 查看考试成绩和正确答案解析 | 消除"不知道自己错在哪"的困惑 | 交卷即出分 + 逐题展示正确/错误/解析 |
 | **管理员** | 管理题库和用户 | 消除手动管理的繁琐 | xlsx 批量导入、数据统计 |
 | **管理员** | 配置系统参数（如答题记录保留天数） | 消除硬编码配置的运维负担 | 可视化系统设置页面 |
+| **管理员（V2.0）** | 在抽屉面板中集中管理单个用户的所有属性和资产 | 消除"多个页面/弹窗操作同一用户"的分散感 | 右侧抽屉一站式操控：基本信息、密码、积分、经验、徽章、称号 |
+| **管理员（V2.0）** | 通过单一职责 API 精确操作用户单项属性 | 消除"一次修改需要更新整个用户对象"的耦合风险 | 每个 API 正交、幂等、可审计 |
+| **管理员（V2.0）** | 为用户灵活分配/调整积分、经验值、等级 | 消除"无法手动补偿/修正用户数值"的僵局 | 覆盖模式（设绝对值）+ 增量模式（加减）双模式 |
 
 ---
 
@@ -128,7 +139,14 @@ ExamMax
 ├── 用户管理
 │   ├── 邀请码注册
 │   ├── 用户角色（学生/教师/管理员）
-│   └── 个人主页
+│   ├── 个人主页
+│   └── 管理后台用户操控面板（V2.0 重构）
+│       ├── 用户列表 → 点击行 → 右侧抽屉
+│       ├── 抽屉内：基本信息编辑（用户名 / 角色）
+│       ├── 抽屉内：密码管理员覆盖
+│       ├── 抽屉内：积分 / 经验值 / 等级（覆盖 / 增量模式）
+│       ├── 抽屉内：徽章管理（已有列表 + 发放 + 删除）
+│       └── 抽屉内：称号管理（已有列表 + 当前标记 + 设置 / 取消）
 └── 管理后台
     ├── 题库管理（CRUD + xlsx 导入）
     ├── 分类管理
@@ -552,6 +570,263 @@ ExamMax
         ├── 展开详情：逐题答案（正确/错误）、每题用时
         └── 切屏日志详情（时间线展示）
 ```
+
+### 用户管理重构模块（V2.0）
+
+#### 重构目标
+
+当前管理后台用户管理页（`/dashboard/admin/users`）仅支持列表展示 + 角色修改，无法满足管理员对用户全维度管理需求。V2.0 将彻底重构该模块：
+
+1. **交互升级**：从表格式管理转为抽屉式（Sheet/Drawer）集中操控面板
+2. **API 拆分**：从单一 PATCH 端点拆为 7 条单一职责 API
+3. **约束强化**：单管理员唯一、角色变更仅限 STUDENT↔TEACHER
+4. **功能扩展**：新增密码覆盖、积分/经验/等级调整、徽章发放/删除、称号设置/取消
+
+#### 单管理员唯一约束（ADMIN Singleton）
+
+系统从设计层面保证全局仅存在一个 ADMIN 用户：
+- 管理员端角色下拉仅显示 STUDENT 和 TEACHER，不包含 ADMIN 选项
+- 后端所有涉及角色修改的 API 必须拒绝将任何用户角色设为 ADMIN
+- 管理员自身不可将自己的角色从 ADMIN 改为其他角色
+- 数据库层面：应用层而非数据库约束（保留枚举值但限制写入路径）
+- 种子数据中预置 `admin` 用户，且不提供通过 UI 创建管理员的功能
+
+#### 交互设计：用户行 → 右侧抽屉
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  用户管理                                    [搜索...]       │
+│                                                              │
+│  ┌──────────────────────────────────────────────┐           │
+│  │ 用户名      角色    积分   经验   等级 操作  │           │
+│  ├──────────────────────────────────────────────┤           │
+│  │ 张三        STUDENT  150   200    2    →    │  ┌──────┐ │
+│  │ 李四        TEACHER  300   500    5    →    │  │      │ │
+│  │ 王五        STUDENT  50    100    1    →    │  │ 抽   │ │
+│  │ ...                                        │  │      │ │
+│  │                                            │  │ 屉   │ │
+│  │                                            │  │ 面   │ │
+│  │                                            │  │      │ │
+│  │                                            │  │ 板   │ │
+│  │                                            │  │      │ │
+│  │                                            │  │      │ │
+│  │                                            │  │      │ │
+│  └──────────────────────────────────────────────┘  │      │ │
+│                               [分页]                 └──────┘ │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**点击用户行 → 右侧抽屉展开，内容如下：**
+
+```
+┌──────────────────────────────────────┐
+│  [关闭 X]       用户操控面板          │
+│                                      │
+│  ── 基本信息 ────────────────────────│
+│  用户名: [张三__________] [保存]     │
+│  角  色: [STUDENT ▼]       [保存]   │
+│  注册时间: 2026-01-15               │
+│                                      │
+│  ── 密码管理 ────────────────────────│
+│  新密码: [____________] [覆盖密码]   │
+│  (管理员直接覆盖，无需旧密码验证)     │
+│                                      │
+│  ── 积分 / 经验 / 等级 ──────────────│
+│  积分: 150  ○ 覆盖  ● 增量          │
+│        [____] (+/- 数字)  [确认]    │
+│  经验: 200  ○ 覆盖  ● 增量          │
+│        [____] (+/- 数字)  [确认]    │
+│  等级: 2    ○ 覆盖  ● 增量          │
+│        [____] (+/- 数字)  [确认]    │
+│                                      │
+│  ── 徽章管理 ────────────────────────│
+│  已有徽章:                           │
+│  [我上我也行 ×] [扶我起来 ×] [对王 ×]│
+│  发放徽章: [选择徽章 ▼] [发放]      │
+│  (下拉显示该用户尚未拥有的徽章)       │
+│                                      │
+│  ── 称号管理 ────────────────────────│
+│  已有称号:                           │
+│  ● 哈基米 (当前使用)  [取消使用]    │
+│    我的刀盾            [设为当前]    │
+│    咕咕嘎嘎            [设为当前]    │
+│                                      │
+│   (用户无称号时显示："该用户暂无称号")│
+│                                      │
+└──────────────────────────────────────┘
+```
+
+**操作反馈规则：**
+- 每个操作成功：显示 Toast 提示 "用户名已更新" / "密码已覆盖" / "积分已调整" 等
+- 每个操作失败：显示错误原因 "用户名已被占用" / "参数无效" 等
+- 操作后自动刷新抽屉中的用户数据，无需手动刷新
+
+#### 积分 / 经验 / 等级调整模式
+
+每种数值提供两种模式（默认增量模式）：
+
+| 模式 | 行为 | 示例 |
+|------|------|------|
+| **增量模式** (默认) | 当前值 + 输入值。输入正数为增加，负数为减少 | 当前积分 100，输入 +50 → 150；输入 -30 → 70 |
+| **覆盖模式** | 直接设置为输入值 | 当前积分 100，输入 500 → 500 |
+
+**约束：**
+- 积分不能 < 0，调整后最小值为 0
+- 经验值不能 < 0，调整后最小值为 0
+- 等级不能 < 1，调整后最小值为 1
+- 等级变化规则：仅能通过覆盖模式设置（增量增减等级无意义）；若选择增量则按经验值公式反算（不直接增减等级）
+- 调整积分/经验值后，`PointLog` 表写入审计记录（reason: `admin_manual_adjustment`）
+
+#### API 设计：7 条单一职责路由
+
+所有 API 均需 ADMIN 角色认证，路由前缀为 `/api/admin/users/[id]`：
+
+| # | 方法 | 路径 | 单一职责 | 请求体 |
+|---|------|------|----------|--------|
+| 1 | `PATCH` | `/api/admin/users/[id]` | 更新用户名 + 角色 | `{ username?: string, role?: "STUDENT" \| "TEACHER" }` |
+| 2 | `PUT` | `/api/admin/users/[id]/password` | 管理员覆盖密码 | `{ password: string }` |
+| 3 | `PATCH` | `/api/admin/users/[id]/points` | 积分调整（覆盖/增量） | `{ mode: "set" \| "add", value: number }` |
+| 4 | `PATCH` | `/api/admin/users/[id]/experience` | 经验值调整（覆盖/增量） | `{ mode: "set" \| "add", value: number }` |
+| 5 | `POST` | `/api/admin/users/[id]/badges` | 授予徽章 | `{ badgeId: string }` |
+| 6 | `DELETE` | `/api/admin/users/[id]/badges` | 删除用户的徽章 | `{ badgeId: string }` (query param 或 body) |
+| 7 | `PUT` | `/api/admin/users/[id]/title` | 设置当前使用称号 | `{ titleId: string }` |
+| 8 | `DELETE` | `/api/admin/users/[id]/title` | 取消当前使用称号 | (无请求体) |
+
+**注意：** 实际上有 8 个端点（含 DELETE title），但用户称 7 个（将 PUT/DELETE title 视为一组 PUT、POST/DELETE badges 各一）。文档在此列出 8 个以防混淆，具体认路由定义。
+
+**各 API 详细规格：**
+
+**1. PATCH /api/admin/users/[id] — 更新用户名 + 角色**
+```
+Request:  { username?: string, role?: "STUDENT" | "TEACHER" }
+Response: { user: { id, username, role, points, experience, level, ... } }
+验证:
+  - username 若变更：检查唯一性
+  - role 若变更：仅允许 STUDENT 或 TEACHER，拒绝 ADMIN
+  - 不允许管理员修改自己的角色
+  - 至少提供 username 或 role 之一
+```
+
+**2. PUT /api/admin/users/[id]/password — 覆盖密码**
+```
+Request:  { password: string }
+Response: { success: true }
+验证:
+  - password 长度 >= 6
+  - 后端 bcrypt 哈希后覆盖存储
+  - 不要求验证旧密码（管理员特权）
+  - 写入审计日志（可选）
+```
+
+**3. PATCH /api/admin/users/[id]/points — 积分调整**
+```
+Request:  { mode: "set" | "add", value: number }
+Response: { user: { id, points, ... } }
+验证:
+  - mode="set": 直接设置 points = value（value >= 0）
+  - mode="add": points += value（结果 >= 0，否则截断为 0）
+  - 写入 PointLog（reason: admin_manual_adjustment）
+```
+
+**4. PATCH /api/admin/users/[id]/experience — 经验值调整**
+```
+Request:  { mode: "set" | "add", value: number }
+Response: { user: { id, experience, level, ... } }
+验证:
+  - mode="set": 直接设置 experience = value（value >= 0），重新计算等级
+  - mode="add": experience += value（结果 >= 0），重新计算等级
+  - 等级计算: level = floor(experience / 100) + 1（与现有升级公式一致）
+```
+
+**5. POST /api/admin/users/[id]/badges — 授予徽章**
+```
+Request:  { badgeId: string }
+Response: { userBadge: { id, badgeId, userId, earnedAt } }
+验证:
+  - badgeId 存在
+  - 用户尚未拥有该徽章（@@unique([userId, badgeId]) 防重）
+  - 自动设置 equipped = false（由用户自行装备）
+```
+
+**6. DELETE /api/admin/users/[id]/badges — 删除徽章**
+```
+Request:  { badgeId: string } (query param: ?badgeId=xxx)
+Response: { success: true }
+验证:
+  - 用户拥有该徽章
+  - 删除 UserBadge 记录
+  - 若删除的是用户当前 equipped 的徽章，自动取消装备状态
+```
+
+**7. PUT /api/admin/users/[id]/title — 设置当前称号**
+```
+Request:  { titleId: string }
+Response: { user: { id, activeTitleId, ... } }
+验证:
+  - titleId 对应的 ShopItem 存在且 type=TITLE
+  - 用户已拥有该称号（UserItem 中存在记录）
+  - 设置 user.activeTitleId = titleId
+```
+
+**8. DELETE /api/admin/users/[id]/title — 取消当前称号**
+```
+Request:  (无)
+Response: { user: { id, activeTitleId: null, ... } }
+验证:
+  - 用户当前有 activeTitleId
+  - 设置 user.activeTitleId = null
+```
+
+#### 前端路由 & 组件
+
+| 路由 | 说明 | 角色 |
+|------|------|------|
+| `/dashboard/admin/users` | 用户管理列表页（重构） | ADMIN |
+| `/dashboard/admin/users` + Drawer | 点击用户行触发右侧抽屉操控面板 | ADMIN |
+
+**组件树：**
+```
+/dashboard/admin/users/page.tsx
+├── UserTable (用户列表表格)
+│   ├── SearchBar (搜索框)
+│   ├── UserRow (用户行，点击触发 onSelect)
+│   └── Pagination (分页)
+└── UserDrawer (右侧抽屉面板)
+    ├── BasicInfoSection (用户名编辑 + 角色选择 + 注册时间)
+    ├── PasswordSection (密码输入 + 覆盖按钮)
+    ├── PointsSection (积分模式切换 + 数值输入 + 确认)
+    ├── ExperienceSection (经验模式切换 + 数值输入 + 确认)
+    ├── LevelSection (等级覆盖输入 + 确认)
+    ├── BadgeSection (已有徽章列表 + 删除 + 发放下拉)
+    └── TitleSection (已有称号列表 + 当前标记 + 设置/取消)
+```
+
+#### 数据流
+
+```
+用户列表页加载
+  │
+  ├── GET /api/admin/users (现有，无需改动)
+  │     获取分页用户列表
+  │
+  └── 点击用户行
+        │
+        ├── 展开右侧抽屉
+        ├── 通过已有列表数据渲染各 Section
+        ├── 各 Section 按需调用独立 API
+        │
+        └── 操作完成后刷新抽屉数据
+              (重新 GET 该用户详情或乐观更新)
+```
+
+#### 与现有 admin/users API 的关系
+
+V2.0 将废弃现有 `PATCH /api/admin/users` 端点（批量角色修改）。替代方案：
+- 保留 `GET /api/admin/users` 用于列表获取（无需改动）
+- 新增 7 条细分端点置于 `/api/admin/users/[id]/...` 路径下
+- 旧 PATCH 端点标记为 deprecated，待前端迁移完成后移除
+
+---
 
 ### User Stories
 
@@ -1150,6 +1425,137 @@ Acceptance Criteria:
 - [ ] Given 距离截止 < 24 小时, Then 倒计时黄色警告
 ```
 
+#### P0 -- Must Have（用户管理重构 V2.0）
+
+**US-35: 抽屉式用户操控面板**
+```
+As a 管理员,
+I want 点击用户列表中的某一行后在右侧展开抽屉操控面板,
+so that 我能在不离开列表页的情况下集中管理该用户的所有属性和资产。
+
+Acceptance Criteria:
+- [ ] Given 管理员进入 /dashboard/admin/users, When 点击任意用户行, Then 右侧滑入抽屉面板
+- [ ] Given 抽屉面板, Then 显示用户基本信息（用户名、角色、注册时间）
+- [ ] Given 抽屉面板, Then 显示密码管理区域
+- [ ] Given 抽屉面板, Then 显示积分/经验/等级调整区域（默认增量模式）
+- [ ] Given 抽屉面板, Then 显示徽章管理区域（已有徽章 + 发放下拉）
+- [ ] Given 抽屉面板, Then 显示称号管理区域（已有称号 + 当前标记 + 操作按钮）
+- [ ] Given 抽屉面板, When 点击 X 或点击遮罩层, Then 抽屉关闭
+- [ ] Given 抽屉面板打开, When 点击另一个用户行, Then 抽屉内容切换为该用户数据
+```
+
+**US-36: 用户名与角色编辑**
+```
+As a 管理员,
+I want 在抽屉面板中直接编辑用户名和切换角色,
+so that 我能快速修正用户基本信息。
+
+Acceptance Criteria:
+- [ ] Given 抽屉面板, When 修改用户名并点击保存, Then 调用 PATCH /api/admin/users/[id] 更新
+- [ ] Given 用户名已被占用, Then 显示错误"用户名已被占用"
+- [ ] Given 角色下拉, Then 仅显示 STUDENT 和 TEACHER 两个选项（不包含 ADMIN）
+- [ ] Given 管理员修改角色为 TEACHER, Then 用户权限立即生效
+- [ ] Given 管理员修改自己的角色, Then 后端拒绝并返回错误
+- [ ] Given 角色修改成功, Then Toast 提示"用户信息已更新"
+```
+
+**US-37: 管理员覆盖用户密码**
+```
+As a 管理员,
+I want 在抽屉中输入新密码并直接覆盖用户密码,
+so that 我能帮助忘记密码的用户重置登录凭证。
+
+Acceptance Criteria:
+- [ ] Given 抽屉密码区域, When 输入新密码（>=6位）并点击"覆盖密码", Then 调用 PUT /api/admin/users/[id]/password 更新
+- [ ] Given 密码长度 < 6, Then 前端提示"密码至少6位"，不发送请求
+- [ ] Given 覆盖成功, Then Toast 提示"密码已覆盖"
+- [ ] Given 覆盖成功, Then 密码输入框清空
+- [ ] Given 无需验证旧密码, Then 管理员直接覆盖特权生效
+```
+
+**US-38: 积分 / 经验 / 等级调整（覆盖 / 增量双模式）**
+```
+As a 管理员,
+I want 通过覆盖或增量模式调整用户的积分、经验值和等级,
+so that 我能灵活处理用户数值（如补偿错误扣除、手动奖励、修正异常等级）。
+
+Acceptance Criteria:
+- [ ] Given 每个数值区域, Then 默认选中"增量模式"，显示 +/- 输入框
+- [ ] Given 切换为"覆盖模式", Then 显示绝对值输入框和当前值对比
+- [ ] Given 积分增量模式, When 输入 +50 并确认, Then 调用 PATCH /api/admin/users/[id]/points (mode=add, value=50)
+- [ ] Given 积分覆盖模式, When 输入 500 并确认, Then 调用 PATCH /api/admin/users/[id]/points (mode=set, value=500)
+- [ ] Given 经验调整, Then 类似积分，调用 PATCH /api/admin/users/[id]/experience
+- [ ] Given 经验调整后, Then 等级自动重新计算（experience / 100 + 1）
+- [ ] Given 等级覆盖模式, When 输入 10 并确认, Then experience 设为 900（(level-1)*100），调用 PATCH /api/admin/users/[id]/experience (mode=set, value=900)
+- [ ] Given 结果 < 0, Then 后端截断为 0（积分/经验）或 1（等级）
+- [ ] Given 调整成功, Then PointLog 写入审计记录（reason: admin_manual_adjustment）
+- [ ] Given 调整成功, Then Toast 显示调整前后的数值变化
+```
+
+**US-39: 徽章发放与删除**
+```
+As a 管理员,
+I want 从抽屉面板中给用户发放新徽章或删除已有徽章,
+so that 我能手动管理用户的徽章资产。
+
+Acceptance Criteria:
+- [ ] Given 抽屉徽章区域, Then 显示用户已有徽章列表（徽章名称 + 删除按钮）
+- [ ] Given 徽章列表为空, Then 显示"该用户暂无徽章"
+- [ ] Given 发放下拉框, Then 列出该用户尚未拥有的所有徽章
+- [ ] Given 选择徽章并点击"发放", Then 调用 POST /api/admin/users/[id]/badges (badgeId)
+- [ ] Given 用户已拥有该徽章, Then 该徽章不出现在下拉框（数据库唯一约束防重）
+- [ ] Given 发放成功, Then 已有徽章列表自动更新，Toast 提示"徽章已发放"
+- [ ] Given 点击已有徽章的删除按钮, Then 弹出确认"确认删除该徽章？若该徽章正在装备中，将自动取消装备"
+- [ ] Given 确认删除, Then 调用 DELETE /api/admin/users/[id]/badges (badgeId)
+- [ ] Given 删除成功, Then 徽章列表自动更新，Toast 提示"徽章已移除"
+```
+
+**US-40: 称号设置与取消**
+```
+As a 管理员,
+I want 查看用户拥有的称号列表并能设置或取消当前使用称号,
+so that 我能管理用户在排行榜和个人主页上展示的称号。
+
+Acceptance Criteria:
+- [ ] Given 抽屉称号区域, Then 显示用户拥有的所有称号（名称 + 当前标记 + 操作按钮）
+- [ ] Given 用户无称号, Then 显示"该用户暂无称号"
+- [ ] Given 当前有 activeTitleId, Then 该称号行显示 ● 标记和"取消使用"按钮
+- [ ] Given 点击"设为当前", Then 调用 PUT /api/admin/users/[id]/title (titleId)
+- [ ] Given 设置成功, Then 该称号标记为 ● 当前使用，其他称号显示"设为当前"按钮
+- [ ] Given 点击"取消使用", Then 调用 DELETE /api/admin/users/[id]/title
+- [ ] Given 取消成功, Then 所有称号的 ● 标记消失，均显示"设为当前"按钮
+- [ ] Given 称号对应的 ShopItem type 不是 TITLE, Then 后端拒绝
+- [ ] Given 用户未拥有该称号, Then 后端拒绝设置
+```
+
+**US-41: 单管理员约束保护**
+```
+As a 系统,
+I want 从所有写入路径阻止 ADMIN 角色的创建或分配,
+so that 全局永远只有一位管理员。
+
+Acceptance Criteria:
+- [ ] Given 任何 API, When 请求体包含 role=ADMIN, Then 返回 400 "不允许分配管理员角色"
+- [ ] Given PATCH /api/admin/users/[id], When 目标用户是 admin 且请求修改角色, Then 返回 403 "不允许修改管理员的角色"
+- [ ] Given 邀请码注册, When 邀请码 role=ADMIN, Then 注册失败
+- [ ] Given 教师创建班级邀请码, When 尝试设置 role=ADMIN, Then 返回错误
+- [ ] Given 管理员自身尝试通过 API 改角色, Then 返回 403
+- [ ] Given 前端角色下拉, Then 永远不包含 ADMIN 选项
+```
+
+**US-42: 旧 PATCH /api/admin/users 端点废弃**
+```
+As a 系统,
+I want 用 7 条新 API 替代现有的角色批量修改端点,
+so that 每个用户管理操作都有独立、可审计、幂等的 API 路径。
+
+Acceptance Criteria:
+- [ ] Given 现有 PATCH /api/admin/users (批量角色修改), Then 标记为 deprecated
+- [ ] Given 7 条新 API 全部上线并验证通过, Then 移除旧 PATCH /api/admin/users 端点
+- [ ] Given 迁移期间, Then 旧端点保留但前端不再调用
+- [ ] Given 新 API 路径结构 /api/admin/users/[id]/*, Then 所有端点均需 ADMIN 认证
+```
+
 ### Non-Functional Requirements
 
 | Category | Requirement | Target |
@@ -1167,6 +1573,9 @@ Acceptance Criteria:
 | **Data Integrity** | 自愈机制 | 支持从 AnswerRecord 重建 WrongQuestion |
 | **Data Integrity** | 考试计时恢复 | localStorage 快照防刷新丢时 |
 | **Decoupling** | 练习模块零改动 | 错题更新完全通过独立 API 调用 |
+| **API Design** | 用户管理 API 单一职责 | 每条 API 仅负责一个属性维度 |
+| **Authorization** | 单管理员唯一约束 | 所有写入路径拒绝 ADMIN 角色分配 |
+| **UX** | 抽屉面板交互 | 展开/关闭动画 < 300ms，数据即时刷新 |
 
 ### Dependencies
 
@@ -1185,6 +1594,10 @@ Acceptance Criteria:
 | 现有 User 表（含 TEACHER 角色） | 教师身份已存在于系统 |
 | Fullscreen API | 浏览器全屏能力（防作弊依赖） |
 | localStorage | 考试计时快照恢复 |
+| shadcn/ui Sheet/Drawer 组件 | 用户操控面板的抽屉交互 |
+| 现有 GET /api/admin/users | V2.0 列表获取复用，无需改动 |
+| 现有 Badge / ShopItem / UserBadge / UserItem 模型 | 徽章和称号管理依赖现有数据模型 |
+| 现有 PointLog 模型 | 积分/经验手动调整需写入审计记录 |
 
 ### Risks & Mitigations
 
@@ -1199,6 +1612,10 @@ Acceptance Criteria:
 | 浏览器切屏检测可能被绕过（虚拟机/多显示器） | Medium | Medium | 切屏检测作为辅助手段，结合每题独立计时降低作弊收益 |
 | 创建考试时为全班学生批量创建 TaskSubmission 耗时 | Medium | Medium | 异步处理：先创建 Task，后台队列批量创建 Submission；前端显示创建中状态 |
 | 教师删除有学生的班级造成数据孤立 | Low | Low | 限制：有未结束考试时不允许删除班级；已结束考试的 Task 数据保留 |
+| 旧 admin/users PATCH 端点与新 7 条 API 并存引起数据竞争 | Low | Medium | 旧端点标记 deprecated 后前端立即切换；保留旧端点仅作回滚备选 |
+| 管理员误操作覆盖用户密码/积分造成争议 | Medium | Medium | 所有手动调整写入 PointLog 审计；密码重置记录操作日志 |
+| 等级直接覆盖与经验值脱节 | Low | Low | 等级设置严格映射为 experience = (level - 1) * 100，保持公式一致 |
+| 抽屉面板数据过多导致移动端体验不佳 | Low | Low | 抽屉内容分区折叠（accordion），移动端默认仅展开基本信息区 |
 
 ---
 
@@ -1246,7 +1663,16 @@ Acceptance Criteria:
 - **教师成绩查看：** 全班统计卡片（平均正确率/每题正确率分布），学生列表（按正确率排序），展开详情（逐题答案+用时），切屏日志时间线
 - **数据模型变更：** 新增 Class/ClassMember，修改 Task/TaskSubmission/InvitationCode
 
-### V2.0 规划 — 增强功能
+### V2.0 范围 — 用户管理重构模块
+- **抽屉式操控面板：** 点击用户行 → 右侧抽屉展开，集中管理基本信息、密码、积分、经验、等级、徽章、称号
+- **单管理员唯一约束：** 全局仅 admin 一个管理员，所有 API 拒绝 ADMIN 角色分配，角色变更仅限 STUDENT↔TEACHER
+- **7 条单一职责 API：** PATCH users/[id]（用户名+角色）、PUT users/[id]/password（密码覆盖）、PATCH users/[id]/points（积分覆盖/增量）、PATCH users/[id]/experience（经验覆盖/增量）、POST/DELETE users/[id]/badges（徽章发放/删除）、PUT/DELETE users/[id]/title（称号设置/取消）
+- **积分/经验/等级双模式调整：** 覆盖模式（设绝对值）和增量模式（加减），最小阈值保护，PointLog 审计
+- **徽章管理：** 已有徽章列表 + 下拉发放未拥有徽章 + 删除（自动取消装备）
+- **称号管理：** 已有称号列表 + 当前使用标记 + 设置/取消
+- **废弃旧端点：** 迁移完成后移除 PATCH /api/admin/users（批量角色修改）
+
+### V2.1 规划 — 增强功能
 - 班级排行榜（按考试平均分排名）
 - 教师批量导入学生到班级
 - 考试题目随机化（每人题目顺序不同）
@@ -1262,6 +1688,9 @@ Acceptance Criteria:
 | 用户留存率 | 40%+ |
 | 考试完成率（V1.6） | 90%+（开始考试后完成交卷） |
 | 防作弊有效性（V1.6） | 切屏检测覆盖率 100%（支持 Fullscreen API 的浏览器） |
+| 用户管理 API 可用性（V2.0） | 7 条 API 全部通过验收测试，成功率 100% |
+| 抽屉面板渲染性能（V2.0） | 打开动画 < 300ms，数据加载 < 1s |
+| 单管理员约束（V2.0） | 0 起违规的 ADMIN 角色新建/提升事件 |
 
 ---
 
@@ -1388,4 +1817,4 @@ TaskSubmission (任务提交) — V1.6 扩展
 
 ---
 
-*PRD Version: 4.0 | Last Updated: 2026-05-22* | Changes: Added 师生交互考试模块 (V1.6) — 12 new user stories (US-23~34), Class + ClassMember data models, Task/TaskSubmission/InvitationCode extension, anti-cheating mechanism (fullscreen + per-question timer + tab-switch detection), teacher class management + exam publishing + result review, student exam flow with localStorage timer snapshots, 17 new API endpoints*
+*PRD Version: 5.0 | Last Updated: 2026-05-23* | Changes: V2.0 — Added 用户管理重构模块: drawer-based user control panel, 7 single-responsibility APIs (PATCH users/[id], PUT users/[id]/password, PATCH users/[id]/points, PATCH users/[id]/experience, POST/DELETE users/[id]/badges, PUT/DELETE users/[id]/title), ADMIN singleton constraint, role change limited to STUDENT↔TEACHER, dual-mode (set/add) points/experience/level adjustment, badge grant/revoke, title set/unset, deprecation of old PATCH /api/admin/users endpoint. Previous: V1.6 师生交互考试模块.*
