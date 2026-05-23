@@ -182,7 +182,7 @@ export async function GET(req: Request) {
       })
 
     // 当前用户排名
-    let currentUser: any = null
+    let currentUser: Record<string, unknown> | null = null
     const authUser = await getAuthUser(req)
     if (authUser && studentSet.has(authUser.id)) {
       const idx = rankings

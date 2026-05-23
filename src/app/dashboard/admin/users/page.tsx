@@ -122,8 +122,8 @@ export default function AdminUsersPage() {
       setUsers(data.users)
       setTotal(data.total)
       setTotalPages(data.totalPages)
-    } catch {
-      console.error("获取用户列表失败")
+    } catch (err) {
+      console.error("获取用户列表失败:", err)
     } finally {
       setLoading(false)
     }
@@ -176,8 +176,8 @@ export default function AdminUsersPage() {
       const data = await api.get<{ userBadges: UserBadgeData[]; allBadges: BadgeData[] }>(`/api/admin/users/${userId}/badges`)
       setUserBadges(data.userBadges)
       setAllBadges(data.allBadges)
-    } catch {
-      console.error("获取徽章失败")
+    } catch (err) {
+      console.error("获取徽章失败:", err)
     }
   }
 
@@ -187,8 +187,8 @@ export default function AdminUsersPage() {
       setUserTitles(data.userTitles)
       setActiveTitleId(data.activeTitleId)
       setAllTitles(data.allTitles || [])
-    } catch {
-      console.error("获取称号失败")
+    } catch (err) {
+      console.error("获取称号失败:", err)
     }
   }
 
@@ -288,8 +288,8 @@ export default function AdminUsersPage() {
         params: { badgeId },
       })
       fetchUserBadges(selectedUser.id)
-    } catch {
-      console.error("移除徽章失败")
+    } catch (err) {
+      console.error("移除徽章失败:", err)
     }
   }
 
@@ -337,8 +337,8 @@ export default function AdminUsersPage() {
         params: { itemId },
       })
       fetchUserTitles(selectedUser.id)
-    } catch {
-      console.error("收回称号失败")
+    } catch (err) {
+      console.error("收回称号失败:", err)
     }
   }
 

@@ -91,7 +91,7 @@ export async function POST(req: Request) {
     // 更新数据库
     const newPity = tier === "legendary" ? 0 : dbUser.pityCounter + 1
 
-    const updates: any[] = [
+    const updates = [
       prisma.user.update({
         where: { id: user!.userId },
         data: {

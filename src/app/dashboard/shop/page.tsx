@@ -36,9 +36,7 @@ export default function ShopPage() {
     try {
       const data = await api.get<ShopData>("/api/shop")
       setShopData(data)
-    } catch {
-      // ignore
-    } finally {
+    } catch (err) { console.error("Shop fetch error:", err) } finally {
       setLoading(false)
     }
   }

@@ -80,7 +80,7 @@ export default function QuestionBank() {
     try {
       const data = await api.get<{ categories: CategoryItem[] }>("/api/admin/categories")
       setCategories(data.categories)
-    } catch {}
+    } catch (err) { console.error("fetchCategories error:", err) }
   }, [])
 
   const fetchQuestions = useCallback(async () => {
@@ -94,7 +94,7 @@ export default function QuestionBank() {
       setQuestions(data.questions)
       setTotal(data.total)
       setTotalPages(data.totalPages)
-    } catch {} finally { setLoading(false) }
+    } catch (err) { console.error("fetchQuestions error:", err) } finally { setLoading(false) }
   }, [page, search, typeFilter, categoryFilter])
 
   useEffect(() => { fetchCategories() }, [fetchCategories])
@@ -122,7 +122,7 @@ export default function QuestionBank() {
       })
       setSelectedQ(new Set(data.ids))
       setSelectAll(true)
-    } catch {}
+    } catch (err) { console.error("toggleSelectAllQ error:", err) }
   }
 
   const toggleSelectC = (id: string) => {
@@ -240,7 +240,7 @@ export default function QuestionBank() {
       const data = await res.json()
       if (!res.ok) { alert(data.error || "导入失败"); return }
       setImportResult(data); fetchQuestions(); fetchCategories()
-    } catch { alert("导入失败") } finally { setImporting(false) }
+    } catch (err) { console.error("handleImport error:", err); alert("导入失败") } finally { setImporting(false) }
   }
 
   const truncate = (s: string, n: number) => s.length > n ? s.slice(0, n) + "..." : s

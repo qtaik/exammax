@@ -67,7 +67,7 @@ export default function TeacherExamsPage() {
     try {
       const data = await api.get<{ tasks: ExamItem[] }>("/api/tasks", { params: { classId: selectedClass } })
       setExams(data.tasks || [])
-    } catch {} finally { setLoading(false) }
+    } catch (err) { console.error("fetchExams error:", err) } finally { setLoading(false) }
   }, [selectedClass])
 
   useEffect(() => {
@@ -97,7 +97,7 @@ export default function TeacherExamsPage() {
     try {
       const catData = await api.get<{ categories: Category[] }>("/api/categories")
       setCategories(catData.categories || [])
-    } catch {}
+    } catch (err) { console.error("fetchCategories error:", err) }
   }
 
   // 选分类后加载对应的题目
@@ -120,7 +120,7 @@ export default function TeacherExamsPage() {
           const poolIds = new Set(newPool.map((q: Question) => q.id))
           return prev.filter((id) => poolIds.has(id))
         })
-      } catch {}
+      } catch (err) { console.error("fetchQuestions error:", err) }
     }
     fetchQuestions()
   }, [selectedCategoryIds, createDialog])
@@ -172,7 +172,7 @@ export default function TeacherExamsPage() {
       })
       setCreateDialog(false)
       fetchExams()
-    } catch {} finally { setSaving(false) }
+    } catch (err) { console.error("handleCreate error:", err) } finally { setSaving(false) }
   }
 
   const handleDelete = async (id: string) => {
@@ -180,7 +180,7 @@ export default function TeacherExamsPage() {
     try {
       await api.delete(`/api/tasks/${id}`)
       fetchExams()
-    } catch {}
+    } catch (err) { console.error("handleDelete error:", err) }
   }
 
   const formatDate = (d: string) => new Date(d).toLocaleString("zh-CN")

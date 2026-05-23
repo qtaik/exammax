@@ -78,7 +78,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         window.location.replace("/login")
         return
       }
-      api.get("/api/user/me").catch(() => {})
+      api.get("/api/user/me").catch((err) => { console.error("[Heartbeat] user/me error:", err) })
     }
 
     check()
@@ -116,7 +116,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [])
 
   const handleLogout = async () => {
-    api.post("/api/auth/logout").catch(() => {})
+    api.post("/api/auth/logout").catch((err) => { console.error("Logout error:", err) })
     localStorage.removeItem("token")
     localStorage.removeItem("user")
     router.push("/login")

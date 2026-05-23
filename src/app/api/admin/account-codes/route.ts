@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import crypto from "crypto"
 import { requireAuth, requireRole } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { AccountCodeStatus, Role } from "@prisma/client"
+import { Prisma, AccountCodeStatus, Role } from "@prisma/client"
 
 export async function GET(req: Request) {
   const { error, user } = await requireAuth(req)
@@ -16,7 +16,7 @@ export async function GET(req: Request) {
     const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "20")))
     const status = url.searchParams.get("status") as AccountCodeStatus | undefined
 
-    const where: any = {}
+    const where: Prisma.AccountCodeWhereInput = {}
     if (status && ["ACTIVE", "EXPIRED", "REVOKED"].includes(status)) {
       where.status = status
     }

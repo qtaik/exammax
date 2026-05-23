@@ -29,7 +29,7 @@ export default function StudentClassesPage() {
     try {
       const data = await api.get<{ classes: ClassItem[] }>("/api/classes")
       setClasses(data.classes || [])
-    } catch {} finally { setLoading(false) }
+    } catch (err) { console.error("fetchClasses error:", err) } finally { setLoading(false) }
   }, [])
 
   useEffect(() => { fetchClasses() }, [fetchClasses])

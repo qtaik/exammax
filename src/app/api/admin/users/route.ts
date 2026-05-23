@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { requireAuth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { Role } from "@prisma/client"
+import { Prisma, Role } from "@prisma/client"
 
 export async function GET(req: Request) {
   const { error, user } = await requireAuth(req)
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     const search = url.searchParams.get("search") || undefined
     const role = url.searchParams.get("role") as Role | undefined
 
-    const where: any = {}
+    const where: Prisma.UserWhereInput = {}
     if (search) {
       where.username = { contains: search }
     }

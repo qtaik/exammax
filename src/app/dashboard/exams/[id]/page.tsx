@@ -101,7 +101,7 @@ export default function StudentExamPage() {
           setSwitchLog(saved.switchLog || [])
           setPerQuestionTime(saved.perQuestionTime || {})
         }
-      } catch {} finally { setLoading(false) }
+      } catch (err) { console.error("fetchExam error:", err) } finally { setLoading(false) }
     }
     if (examId) fetchExam()
   }, [examId])
@@ -171,7 +171,7 @@ export default function StudentExamPage() {
       if (!document.fullscreenElement && !submitting) {
         document.documentElement.requestFullscreen().then(() => {
           setIsFullscreen(true)
-        }).catch(() => {})
+        }).catch((err) => { console.error("reenterFullscreen error:", err) })
       }
     }
 
@@ -226,7 +226,7 @@ export default function StudentExamPage() {
     try {
       await document.documentElement.requestFullscreen()
       setIsFullscreen(true)
-    } catch {}
+    } catch (err) { console.error("enterFullscreen error:", err) }
   }
 
   // --- Navigation with time tracking ---
@@ -284,7 +284,7 @@ export default function StudentExamPage() {
       if (result.success) {
         clearSession(examId)
         // Exit fullscreen
-        try { if (document.fullscreenElement) await document.exitFullscreen() } catch {}
+        try { if (document.fullscreenElement) await document.exitFullscreen() } catch (err) { console.error("exitFullscreen error:", err) }
         // Reload to show results
         window.location.reload()
       } else {
@@ -668,12 +668,12 @@ function saveSession(examId: string, data: ExamSession) {
   if (typeof window === "undefined") return
   try {
     localStorage.setItem(sessionKey(examId), JSON.stringify(data))
-  } catch {}
+  } catch (err) { console.error("saveSession error:", err) }
 }
 
 function clearSession(examId: string) {
   if (typeof window === "undefined") return
   try {
     localStorage.removeItem(sessionKey(examId))
-  } catch {}
+  } catch (err) { console.error("clearSession error:", err) }
 }

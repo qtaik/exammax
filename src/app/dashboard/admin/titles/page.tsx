@@ -37,7 +37,7 @@ export default function AdminTitlesPage() {
     try {
       const data = await api.get<{ titles: TitleItem[] }>("/api/admin/titles")
       setTitles(data.titles || [])
-    } catch {} finally {
+    } catch (err) { console.error("fetchTitles error:", err) } finally {
       setLoading(false)
     }
   }, [])

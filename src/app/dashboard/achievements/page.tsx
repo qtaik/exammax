@@ -24,7 +24,7 @@ export default function AchievementsPage() {
   useEffect(() => {
     api.get<{ achievements: Achievement[] }>("/api/achievements")
       .then((data) => setAchievements(data.achievements || []))
-      .catch(() => {})
+      .catch((err) => { console.error("Achievements fetch error:", err) })
       .finally(() => setLoading(false))
   }, [])
 

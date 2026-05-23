@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth"
+import { Prisma } from "@prisma/client"
 import { checkAndAwardBadges } from "@/lib/badge-checker"
 
 export async function GET(req: Request) {
@@ -11,7 +12,7 @@ export async function GET(req: Request) {
     const mode = searchParams.get("mode") || "default"
     const limit = Math.min(Number(searchParams.get("limit")) || 10, 50)
 
-    let where: any = {}
+    let where: Prisma.QuestionWhereInput = {}
     if (categoryId) {
       where.categoryId = categoryId
     } else if (categoryIds) {

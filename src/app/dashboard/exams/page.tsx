@@ -30,7 +30,7 @@ export default function StudentExamsPage() {
     try {
       const data = await api.get<{ tasks: ExamItem[] }>("/api/tasks")
       setExams(data.tasks || [])
-    } catch {} finally { setLoading(false) }
+    } catch (err) { console.error("Fetch exams error:", err) } finally { setLoading(false) }
   }, [])
 
   useEffect(() => { fetchExams() }, [fetchExams])

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { requireAuth, requireRole } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { QuestionType } from "@prisma/client"
+import { Prisma, QuestionType } from "@prisma/client"
 
 function buildWhere(req: Request) {
   const url = new URL(req.url)
@@ -9,7 +9,7 @@ function buildWhere(req: Request) {
   const type = url.searchParams.get("type") as QuestionType | undefined
   const search = url.searchParams.get("search") || undefined
 
-  const where: any = {}
+  const where: Prisma.QuestionWhereInput = {}
   if (categoryId) where.categoryId = categoryId
   if (type && ["CHOICE", "FILL", "JUDGE"].includes(type)) where.type = type
   if (search) where.content = { contains: search }

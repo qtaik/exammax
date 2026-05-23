@@ -32,9 +32,7 @@ export default function CheckInPage() {
     try {
       const data = await api.get<CheckInStatus>("/api/checkin")
       setStatus(data)
-    } catch {
-      // ignore
-    } finally {
+    } catch (err) { console.error("Checkin status fetch error:", err) } finally {
       setLoading(false)
     }
   }

@@ -22,7 +22,7 @@ export default function DashboardPage() {
   useEffect(() => {
     api.get<{ user: User }>("/api/user/me")
       .then((data) => setUser(data.user))
-      .catch(() => {})
+      .catch((err) => { console.error("Dashboard user fetch error:", err) })
   }, [])
 
   if (!user) {

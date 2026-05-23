@@ -29,6 +29,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const questionIds = answers.map((a: { questionId: string }) => a.questionId)
     const questions = await prisma.question.findMany({
       where: { id: { in: questionIds } },
+      select: { id: true, type: true, answer: true },
     })
     const questionMap = new Map(questions.map((q) => [q.id, q]))
 
@@ -101,9 +102,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     // 检查升级 (渐进公式: 升至L+1需100×L经验)
     const dbUser = await prisma.user.findUnique({ where: { id: user!.userId }, select: { experience: true, level: true } })
-    const newLevel = Math.floor((1 + Math.sqrt(1 + 8 * dbUser!.experience / 100)) / 2)
+    if (!dbUser) return NextResponse.json({ error: "用户不存在" }, { status: 404 })
+    const newLevel = Math.floor((1 + Math.sqrt(1 + 8 * dbUser.experience / 100)) / 2)
     let leveledUp = false
-    if (newLevel > dbUser!.level) {
+    if (newLevel > dbUser.level) {
       await prisma.user.update({ where: { id: user!.userId }, data: { level: newLevel } })
       leveledUp = true
     }

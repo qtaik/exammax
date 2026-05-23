@@ -79,7 +79,7 @@ export default function AdminSettingsPage() {
       const vals: Record<string, string> = {}
       merged.forEach((s) => { vals[s.key] = s.value })
       setEditedValues(vals)
-    } catch {} finally {
+    } catch (err) { console.error("fetchSettings error:", err) } finally {
       setLoading(false)
     }
   }, [])
@@ -90,7 +90,7 @@ export default function AdminSettingsPage() {
     setSaving((prev) => ({ ...prev, [key]: true }))
     try {
       await api.put("/api/admin/settings", { key, value: editedValues[key] })
-    } catch {} finally {
+    } catch (err) { console.error("handleSave error:", err) } finally {
       setSaving((prev) => ({ ...prev, [key]: false }))
     }
   }

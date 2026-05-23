@@ -115,7 +115,7 @@ export default function WrongQuestionsPage() {
       setSelfHealing(true)
       try {
         await api.post("/api/wrong-questions/self-heal")
-      } catch {} finally {
+      } catch (err) { console.error("selfHeal error:", err) } finally {
         setSelfHealing(false)
       }
     }
@@ -126,7 +126,7 @@ export default function WrongQuestionsPage() {
   useEffect(() => {
     api.get<{ categories: Category[] }>("/api/categories")
       .then((data) => setCategories(data.categories || []))
-      .catch(() => {})
+      .catch((err) => { console.error("fetchCategories error:", err) })
   }, [])
 
   // --- Fetch list ---
@@ -140,7 +140,7 @@ export default function WrongQuestionsPage() {
       setRecords(data.records || [])
       setTotalPages(data.totalPages || 1)
       setTotal(data.total || 0)
-    } catch {} finally {
+    } catch (err) { console.error("fetchList error:", err) } finally {
       setLoading(false)
     }
   }, [])
@@ -153,7 +153,7 @@ export default function WrongQuestionsPage() {
         { params: { status: "ACTIVE", sort: "errorCount", limit: "20", categoryId: cat !== "all" ? cat : undefined } }
       )
       setLeaderboard(data.records || [])
-    } catch {}
+    } catch (err) { console.error("fetchLeaderboard error:", err) }
   }, [])
 
   useEffect(() => {
@@ -199,8 +199,7 @@ export default function WrongQuestionsPage() {
       setUserAnswer("")
       setSelectedOption(null)
       startTimeRef.current = Date.now()
-      setTimeSpent(0)
-    } catch {} finally {
+    } catch (err) { console.error("startPractice error:", err) } finally {
       setPracticeLoading(false)
     }
   }
@@ -209,6 +208,7 @@ export default function WrongQuestionsPage() {
   const handlePracticeSubmit = async () => {
     if (submitting) return
     const q = practiceQuestions[practiceIndex]
+    if (!q) return
     let answer = ""
     if (q.type === "CHOICE") { if (!selectedOption) return; answer = selectedOption }
     else if (q.type === "FILL") { if (!userAnswer.trim()) return; answer = userAnswer.trim() }
@@ -228,8 +228,8 @@ export default function WrongQuestionsPage() {
       // Fire-and-forget 更新错题状态
       api.post("/api/wrong-questions", {
         questionId: q.id, correct: data.correct, userAnswer: answer,
-      }).catch(() => {})
-    } catch {} finally { setSubmitting(false) }
+      }).catch((err) => { console.error("wrongQuestions update error:", err) })
+    } catch (err) { console.error("handlePracticeSubmit error:", err) } finally { setSubmitting(false) }
   }
 
   const handlePracticeNext = () => {

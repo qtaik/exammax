@@ -22,7 +22,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       limited?: boolean
     }
 
-    const data: any = {}
+    const data: Record<string, unknown> = {}
     if (name !== undefined) data.name = name.trim()
     if (icon !== undefined) data.icon = icon.trim() || null
     if (limited !== undefined) {

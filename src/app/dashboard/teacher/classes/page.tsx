@@ -49,7 +49,7 @@ export default function TeacherClassesPage() {
     try {
       const data = await api.get<{ classes: ClassItem[] }>("/api/classes")
       setClasses(data.classes || [])
-    } catch {} finally { setLoading(false) }
+    } catch (err) { console.error("fetchClasses error:", err) } finally { setLoading(false) }
   }, [])
 
   useEffect(() => { fetchClasses() }, [fetchClasses])
@@ -63,7 +63,7 @@ export default function TeacherClassesPage() {
       setFormName("")
       setFormDesc("")
       fetchClasses()
-    } catch {} finally { setSaving(false) }
+    } catch (err) { console.error("handleCreate error:", err) } finally { setSaving(false) }
   }
 
   const handleEdit = async () => {
@@ -73,7 +73,7 @@ export default function TeacherClassesPage() {
       await api.put(`/api/classes/${editDialog.id}`, { name: formName, description: formDesc })
       setEditDialog(null)
       fetchClasses()
-    } catch {} finally { setSaving(false) }
+    } catch (err) { console.error("handleEdit error:", err) } finally { setSaving(false) }
   }
 
   const handleDelete = async (id: string) => {
@@ -89,7 +89,7 @@ export default function TeacherClassesPage() {
     try {
       const data = await api.get<{ members: Member[] }>(`/api/classes/${cls.id}/members`)
       setMembers(data.members || [])
-    } catch {}
+    } catch (err) { console.error("openMembers error:", err) }
   }
 
   const fetchStudents = async (search: string) => {
@@ -100,7 +100,7 @@ export default function TeacherClassesPage() {
         { params: { role: "STUDENT", limit: "100", search: search || undefined } }
       )
       setStudentList(data.users || [])
-    } catch {} finally { setStudentLoading(false) }
+    } catch (err) { console.error("fetchStudents error:", err) } finally { setStudentLoading(false) }
   }
 
   const openStudentDialog = () => {
@@ -116,7 +116,7 @@ export default function TeacherClassesPage() {
       // Refresh members list and remove this student from the selection list
       openMembers(memberDialog)
       setStudentList((prev) => prev.filter((s) => s.id !== userId))
-    } catch {}
+    } catch (err) { console.error("handleAddMember error:", err) }
   }
 
   const handleRemoveMember = async (userId: string) => {
@@ -124,7 +124,7 @@ export default function TeacherClassesPage() {
     try {
       await api.delete(`/api/classes/${memberDialog.id}/members`, { params: { userId } })
       openMembers(memberDialog)
-    } catch {}
+    } catch (err) { console.error("handleRemoveMember error:", err) }
   }
 
   const handleGenInvite = async (cls: ClassItem) => {
@@ -132,7 +132,7 @@ export default function TeacherClassesPage() {
     try {
       const data = await api.get<{ classCode?: { code: string } }>(`/api/classes/${cls.id}/class-code`)
       setInviteCode(data.classCode?.code || "")
-    } catch {}
+    } catch (err) { console.error("handleGenInvite error:", err) }
   }
 
   if (loading) return <div className="flex items-center justify-center h-64"><p className="text-muted-foreground">加载中...</p></div>

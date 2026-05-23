@@ -22,12 +22,19 @@ const REWARD_LABELS: Record<string, string> = {
   title: "称号",
 }
 
+interface LotteryResult {
+  tier: string
+  rewardType: string
+  value: number
+  title?: { icon: string; name: string } | null
+}
+
 export default function LotteryPage() {
   const [points, setPoints] = useState(0)
   const [pityCounter, setPityCounter] = useState(0)
   const [loading, setLoading] = useState(true)
   const [drawing, setDrawing] = useState(false)
-  const [result, setResult] = useState<any>(null)
+  const [result, setResult] = useState<LotteryResult | null>(null)
   const [showResult, setShowResult] = useState(false)
 
   const fetchState = useCallback(async () => {
@@ -35,7 +42,7 @@ export default function LotteryPage() {
       const data = await api.get<{ points: number; pityCounter: number }>("/api/lottery")
       setPoints(data.points)
       setPityCounter(data.pityCounter)
-    } catch {} finally {
+    } catch (err) { console.error("fetchLotteryState error:", err) } finally {
       setLoading(false)
     }
   }, [])
@@ -48,7 +55,7 @@ export default function LotteryPage() {
     try {
       const data = await api.post<{
         success: boolean
-        result: any
+        result: LotteryResult
         pityCounter: number
       }>("/api/lottery/draw")
       setResult(data.result)

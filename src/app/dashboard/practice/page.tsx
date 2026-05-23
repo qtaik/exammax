@@ -76,14 +76,14 @@ function saveProgress(categoryId: string, data: PracticeProgress) {
   if (typeof window === "undefined") return
   try {
     localStorage.setItem(progressKey(categoryId), JSON.stringify(data))
-  } catch {}
+  } catch (err) { console.error("saveProgress error:", err) }
 }
 
 function clearProgress(categoryId: string) {
   if (typeof window === "undefined") return
   try {
     localStorage.removeItem(progressKey(categoryId))
-  } catch {}
+  } catch (err) { console.error("clearProgress error:", err) }
 }
 
 export default function PracticePage() {
@@ -142,7 +142,7 @@ export default function PracticePage() {
   useEffect(() => {
     api.get<{ categories: Category[] }>("/api/categories")
       .then((data) => setCategories(data.categories || []))
-      .catch(() => {})
+      .catch((err) => { console.error("fetchCategories error:", err) })
       .finally(() => setLoadingCategories(false))
   }, [])
 
@@ -354,7 +354,7 @@ export default function PracticePage() {
       // Fire-and-forget 更新错题本
       api.post("/api/wrong-questions", {
         questionId: question.id, correct: data.correct, userAnswer: answer,
-      }).catch(() => {})
+      }).catch((err) => { console.error("wrongQuestions update error:", err) })
       // 逐题闯关：答完即存档
       if (mode === "onebyone" && progressCatRef.current) {
         const prevProgress = loadProgress(progressCatRef.current)
@@ -369,7 +369,7 @@ export default function PracticePage() {
           })
         }
       }
-    } catch {} finally { setSubmitting(false) }
+    } catch (err) { console.error("handlePracticeSubmit error:", err) } finally { setSubmitting(false) }
   }
 
   const handleNext = () => {

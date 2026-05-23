@@ -130,8 +130,9 @@ export default function ProfilePage() {
   }
 
   const handleToggleOrder = async () => {
+    if (!user) return
     try {
-      await api.patch("/api/user/me", { showBadgeFirst: !user?.showBadgeFirst })
+      await api.patch("/api/user/me", { showBadgeFirst: !user.showBadgeFirst })
       await fetchAll()
     } catch (e: any) {
       alert(e.message || "设置失败")

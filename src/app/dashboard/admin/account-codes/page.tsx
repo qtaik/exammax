@@ -90,7 +90,7 @@ export default function AdminAccountCodesPage() {
         const tz = (data.settings || []).find((s: any) => s.key === "timezone")
         if (tz) setTimezone(tz.value)
       })
-      .catch(() => {})
+      .catch((err) => { console.error("fetchTimezone error:", err) })
   }, [])
 
   const fetchCodes = useCallback(async () => {
@@ -106,8 +106,8 @@ export default function AdminAccountCodesPage() {
       setCodes(data.codes)
       setTotal(data.total)
       setTotalPages(data.totalPages)
-    } catch {
-      console.error("获取账户码列表失败")
+    } catch (err) {
+      console.error("获取账户码列表失败:", err)
     } finally {
       setLoading(false)
     }

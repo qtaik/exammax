@@ -52,7 +52,7 @@ export default function ExamResultsPage() {
         )
         setTask(data.task)
         setResults(data.results || [])
-      } catch {} finally {
+      } catch (err) { console.error("fetchResults error:", err) } finally {
         setLoading(false)
       }
     }
