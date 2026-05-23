@@ -43,7 +43,8 @@ export async function POST(req: Request) {
     })
 
     return NextResponse.json({ success: true })
-  } catch {
+  } catch (error) {
+    console.error("POST /api/user/password error:", error)
     return NextResponse.json({ error: "修改密码失败" }, { status: 500 })
   }
 }

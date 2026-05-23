@@ -29,7 +29,8 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json({ user: dbUser })
-  } catch {
+  } catch (error) {
+    console.error("GET /api/user/me error:", error)
     return NextResponse.json({ error: "获取用户信息失败" }, { status: 500 })
   }
 }
@@ -75,7 +76,8 @@ export async function PATCH(req: Request) {
     await prisma.user.update({ where: { id: user!.userId }, data })
 
     return NextResponse.json({ success: true })
-  } catch {
+  } catch (error) {
+    console.error("PATCH /api/user/me error:", error)
     return NextResponse.json({ error: "更新失败" }, { status: 500 })
   }
 }

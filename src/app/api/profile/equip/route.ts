@@ -72,7 +72,8 @@ export async function GET(req: Request) {
       equippedBadges,
       activeTitle,
     })
-  } catch {
+  } catch (error) {
+    console.error("GET /api/profile/equip error:", error)
     return NextResponse.json({ error: "服务器错误" }, { status: 500 })
   }
 }
@@ -120,7 +121,8 @@ export async function POST(req: Request) {
     ])
 
     return NextResponse.json({ success: true, message: "徽章已装备" })
-  } catch {
+  } catch (error) {
+    console.error("POST /api/profile/equip error:", error)
     return NextResponse.json({ error: "服务器错误" }, { status: 500 })
   }
 }
@@ -162,7 +164,8 @@ export async function DELETE(req: Request) {
     })
 
     return NextResponse.json({ success: true, message: "徽章已卸下" })
-  } catch {
+  } catch (error) {
+    console.error("DELETE /api/profile/equip error:", error)
     return NextResponse.json({ error: "服务器错误" }, { status: 500 })
   }
 }

@@ -26,7 +26,8 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json({ activeTitle })
-  } catch {
+  } catch (error) {
+    console.error("GET /api/profile/title error:", error)
     return NextResponse.json({ error: "服务器错误" }, { status: 500 })
   }
 }
@@ -77,7 +78,8 @@ export async function POST(req: Request) {
     })
 
     return NextResponse.json({ success: true, message: "称号已设置", activeTitle: { id: item.id, name: item.name, icon: item.icon } })
-  } catch {
+  } catch (error) {
+    console.error("POST /api/profile/title error:", error)
     return NextResponse.json({ error: "服务器错误" }, { status: 500 })
   }
 }

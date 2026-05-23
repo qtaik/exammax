@@ -21,7 +21,8 @@ export async function POST(req: Request) {
     await redis.set(`blacklist:${token}`, "1", "EX", ttl)
 
     return NextResponse.json({ success: true })
-  } catch {
+  } catch (error) {
+    console.error("POST /api/auth/logout error:", error)
     return NextResponse.json({ error: "无效令牌" }, { status: 401 })
   }
 }

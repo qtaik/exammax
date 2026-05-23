@@ -29,7 +29,8 @@ export async function GET(req: Request) {
     }))
 
     return NextResponse.json({ achievements })
-  } catch {
+  } catch (error) {
+    console.error("GET /api/achievements error:", error)
     return NextResponse.json({ error: "服务器错误" }, { status: 500 })
   }
 }

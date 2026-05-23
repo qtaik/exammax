@@ -45,7 +45,8 @@ export async function GET(req: Request) {
       streakDays: dbUser.streakDays,
       lastCheckIn: dbUser.lastCheckIn ? dbUser.lastCheckIn.toISOString() : null,
     })
-  } catch {
+  } catch (error) {
+    console.error("GET /api/checkin error:", error)
     return NextResponse.json({ error: "服务器错误" }, { status: 500 })
   }
 }
@@ -123,7 +124,8 @@ export async function POST(req: Request) {
       streakDays: result.streakDays,
       ...(result.leveledUp && { newLevel: result.newLevel }),
     })
-  } catch {
+  } catch (error) {
+    console.error("POST /api/checkin error:", error)
     return NextResponse.json({ error: "服务器错误" }, { status: 500 })
   }
 }
