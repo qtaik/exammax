@@ -19,6 +19,7 @@ interface UserInfo {
   streakDays: number
   activeTitleId: string | null
   showBadgeFirst: boolean
+  showBadgeText: boolean
 }
 
 interface Achievement {
@@ -60,12 +61,6 @@ export default function ProfilePage() {
   const [savingPassword, setSavingPassword] = useState(false)
 
   const [badgesDialogOpen, setBadgesDialogOpen] = useState(false)
-  const [showBadgeText, setShowBadgeText] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("showBadgeText") === "1"
-    }
-    return false
-  })
 
   const getToken = () => localStorage.getItem("token")
 
@@ -366,12 +361,20 @@ export default function ProfilePage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">装备预览</CardTitle>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => {
-              const next = !showBadgeText
-              setShowBadgeText(next)
-              localStorage.setItem("showBadgeText", next ? "1" : "0")
+            <Button variant="outline" size="sm" onClick={async () => {
+              try {
+                const token = getToken()
+                const res = await fetch("/api/user/me", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                  body: JSON.stringify({ showBadgeText: !user?.showBadgeText }),
+                })
+                if (res.ok) await fetchAll()
+              } catch {
+                alert("设置失败")
+              }
             }}>
-              {showBadgeText ? "显示图标" : "显示文字"}
+              {user?.showBadgeText ? "显示图标" : "显示文字"}
             </Button>
             <Button variant="outline" size="sm" onClick={handleToggleOrder}>
               <ArrowUpDown className="h-4 w-4 mr-1" />
@@ -384,7 +387,7 @@ export default function ProfilePage() {
             {user.showBadgeFirst ? (
               <>
                 <Badge variant="outline" className="text-sm">
-                  {showBadgeText ? (
+                  {user.showBadgeText ? (
                     achievements.filter((a) => a.equipped)[0]?.name || "未装备勋章"
                   ) : (
                     <>
@@ -406,7 +409,7 @@ export default function ProfilePage() {
                 </Badge>
                 <span className="text-muted-foreground text-sm">→</span>
                 <Badge variant="outline" className="text-sm">
-                  {showBadgeText ? (
+                  {user.showBadgeText ? (
                     achievements.filter((a) => a.equipped)[0]?.name || "未装备勋章"
                   ) : (
                     <>

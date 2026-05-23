@@ -28,6 +28,7 @@ interface LeaderboardEntry {
   equippedBadge: BadgeInfo | null
   activeTitle: TitleInfo | null
   showBadgeFirst: boolean
+  showBadgeText: boolean
   className: string | null
 }
 interface ClassEntry {
@@ -95,9 +96,15 @@ export default function LeaderboardPage() {
 
   const renderBadgeAndTitle = (entry: LeaderboardEntry) => {
     const badgeEl = entry.equippedBadge ? (
-      <span className="text-sm" title={entry.equippedBadge.name}>
-        {entry.equippedBadge.icon}
-      </span>
+      entry.showBadgeText ? (
+        <Badge variant="outline" className="text-xs shrink-0">
+          {entry.equippedBadge.name}
+        </Badge>
+      ) : (
+        <span className="text-sm" title={entry.equippedBadge.name}>
+          {entry.equippedBadge.icon}
+        </span>
+      )
     ) : null
     const titleEl = entry.activeTitle ? (
       <Badge variant="secondary" className="text-xs shrink-0">

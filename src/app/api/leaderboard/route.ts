@@ -136,6 +136,7 @@ export async function GET(req: Request) {
         role: true,
         level: true,
         showBadgeFirst: true,
+        showBadgeText: true,
         activeTitleId: true,
         badges: {
           where: { equipped: true },
@@ -175,6 +176,7 @@ export async function GET(req: Request) {
           equippedBadge: u.badges[0] ? { id: u.badges[0].badge.id, name: u.badges[0].badge.name, icon: u.badges[0].badge.icon } : null,
           activeTitle: u.activeTitleId ? titleMap.get(u.activeTitleId) || null : null,
           showBadgeFirst: u.showBadgeFirst,
+          showBadgeText: u.showBadgeText,
           className: u.classMembers[0]?.class.name || null,
         }
       })
@@ -202,6 +204,7 @@ export async function GET(req: Request) {
           equippedBadge: u.badges[0] ? { id: u.badges[0].badge.id, name: u.badges[0].badge.name, icon: u.badges[0].badge.icon } : null,
           activeTitle: u.activeTitleId ? titleMap.get(u.activeTitleId) || null : null,
           showBadgeFirst: u.showBadgeFirst,
+          showBadgeText: u.showBadgeText,
           className: u.classMembers[0]?.class.name || null,
         }
       }

@@ -18,6 +18,7 @@ export async function GET(req: Request) {
         level: true,
         streakDays: true,
         showBadgeFirst: true,
+        showBadgeText: true,
         activeTitleId: true,
         createdAt: true,
       },
@@ -39,9 +40,10 @@ export async function PATCH(req: Request) {
 
   try {
     const body = await req.json()
-    const { username, showBadgeFirst } = body as {
+    const { username, showBadgeFirst, showBadgeText } = body as {
       username?: string
       showBadgeFirst?: boolean
+      showBadgeText?: boolean
     }
 
     const data: Record<string, unknown> = {}
@@ -60,6 +62,10 @@ export async function PATCH(req: Request) {
 
     if (showBadgeFirst !== undefined) {
       data.showBadgeFirst = showBadgeFirst
+    }
+
+    if (showBadgeText !== undefined) {
+      data.showBadgeText = showBadgeText
     }
 
     if (Object.keys(data).length === 0) {
