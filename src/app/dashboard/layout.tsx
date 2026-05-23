@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
+import { api } from "@/lib/api"
 import { BookOpen, Trophy, ShoppingBag, RotateCcw, BarChart3, Users, HelpCircle, Settings, LogOut, Home, CalendarCheck, Award, User, FileText, School, Sparkles, Tag } from "lucide-react"
 
 interface User {
@@ -56,15 +57,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.push("/login")
       return
     }
-    fetch("/api/user/me", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error()
-        return res.json()
-      })
+    api.get<{ user: User }>("/api/user/me")
       .then((data) => setUser(data.user))
       .catch(() => {
+        // api client handles session-kicked redirect; for other errors just go to login
         localStorage.removeItem("token")
         localStorage.removeItem("user")
         router.push("/login")
@@ -72,14 +68,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       .finally(() => setLoading(false))
   }, [router])
 
-  const handleLogout = async () => {
-    const token = localStorage.getItem("token")
-    if (token) {
-      fetch("/api/auth/logout", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {})
+  // Heartbeat: check session every 30 seconds
+  const heartRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    const check = () => {
+      api.get("/api/user/me").catch(() => {})
     }
+
+    check()
+    heartRef.current = setInterval(check, 30_000)
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        check()
+        if (!heartRef.current) {
+          heartRef.current = setInterval(check, 30_000)
+        }
+      } else {
+        if (heartRef.current) {
+          clearInterval(heartRef.current)
+          heartRef.current = null
+        }
+      }
+    }
+    document.addEventListener("visibilitychange", onVisible)
+
+    return () => {
+      if (heartRef.current) clearInterval(heartRef.current)
+      document.removeEventListener("visibilitychange", onVisible)
+    }
+  }, [])
+
+  const handleLogout = async () => {
+    api.post("/api/auth/logout").catch(() => {})
     localStorage.removeItem("token")
     localStorage.removeItem("user")
     router.push("/login")

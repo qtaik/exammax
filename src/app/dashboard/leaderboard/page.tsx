@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { api } from "@/lib/api"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Trophy, Medal, Crown, Shield, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -57,12 +58,8 @@ export default function LeaderboardPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem("token")
-    const headers: Record<string, string> = {}
-    if (token) headers.Authorization = `Bearer ${token}`
-
     const fetchData = (t: string, s: string) =>
-      fetch(`/api/leaderboard?type=${t}&scope=${s}`, { headers }).then((r) => r.json())
+      api.get(`/api/leaderboard?type=${t}&scope=${s}`)
 
     Promise.all([
       fetchData("practice", "personal"),
@@ -72,16 +69,16 @@ export default function LeaderboardPage() {
     ])
       .then(([pPersonal, ePersonal, pClass, eClass]) => {
         setPersonalData({
-          practice: pPersonal.leaderboard || [],
-          exam: ePersonal.leaderboard || [],
+          practice: (pPersonal as any).leaderboard || [],
+          exam: (ePersonal as any).leaderboard || [],
         })
         setClassData({
-          practice: pClass.leaderboard || [],
-          exam: eClass.leaderboard || [],
+          practice: (pClass as any).leaderboard || [],
+          exam: (eClass as any).leaderboard || [],
         })
         setCurrentUser({
-          practice: pPersonal.currentUser || null,
-          exam: ePersonal.currentUser || null,
+          practice: (pPersonal as any).currentUser || null,
+          exam: (ePersonal as any).currentUser || null,
         })
       })
       .finally(() => setLoading(false))

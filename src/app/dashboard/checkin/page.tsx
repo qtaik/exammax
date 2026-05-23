@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { api } from "@/lib/api"
 import { CalendarCheck, Flame, Gift, ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -27,18 +28,10 @@ export default function CheckInPage() {
   const [error, setError] = useState("")
   const [currentMonth, setCurrentMonth] = useState(new Date())
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
-
   const fetchStatus = async () => {
-    if (!token) return
     try {
-      const res = await fetch("/api/checkin", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setStatus(data)
-      }
+      const data = await api.get<CheckInStatus>("/api/checkin")
+      setStatus(data)
     } catch {
       // ignore
     } finally {
@@ -51,31 +44,16 @@ export default function CheckInPage() {
   }, [])
 
   const handleCheckIn = async () => {
-    if (!token) return
     setSubmitting(true)
     setError("")
     setResult(null)
 
     try {
-      const res = await fetch("/api/checkin", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      })
-      const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.error || "签到失败")
-        return
-      }
-
+      const data = await api.post<CheckInResult>("/api/checkin")
       setResult(data)
-      // Refresh status
       await fetchStatus()
-    } catch {
-      setError("网络错误，请重试")
+    } catch (err: any) {
+      setError(err?.message || "签到失败")
     } finally {
       setSubmitting(false)
     }

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { api } from "@/lib/api"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   CheckCircle, XCircle, ArrowRight, ArrowLeft, Clock, Trophy,
@@ -139,8 +140,7 @@ export default function PracticePage() {
 
   // --- Fetch categories ---
   useEffect(() => {
-    fetch("/api/categories")
-      .then((res) => res.json())
+    api.get<{ categories: Category[] }>("/api/categories")
       .then((data) => setCategories(data.categories || []))
       .catch(() => {})
       .finally(() => setLoadingCategories(false))
@@ -185,12 +185,9 @@ export default function PracticePage() {
   // --- Fetch exam available count ---
   const fetchExamCount = useCallback(async (categoryId?: string) => {
     try {
-      const token = localStorage.getItem("token")
-      const url = categoryId
-        ? `/api/practice?mode=exam&categoryId=${categoryId}`
-        : "/api/practice?mode=exam"
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-      const data = await res.json()
+      const params: Record<string, string> = { mode: "exam" }
+      if (categoryId) params.categoryId = categoryId
+      const data = await api.get<{ total: number }>("/api/practice", { params })
       setExamAvailableCount(data.total || 0)
     } catch {
       setExamAvailableCount(0)
@@ -258,18 +255,14 @@ export default function PracticePage() {
     }
 
     try {
-      const token = localStorage.getItem("token")
-      const params = new URLSearchParams()
-      if (categoryId) params.set("categoryId", categoryId)
-      // 逐题闯关用 mode=all 拉全部，随机用 limit
+      const queryParams: Record<string, string> = {}
+      if (categoryId) queryParams.categoryId = categoryId
       if (modeRef.current === "onebyone" && categoryId) {
-        params.set("mode", "all")
+        queryParams.mode = "all"
       } else if (limit) {
-        params.set("limit", String(limit))
+        queryParams.limit = String(limit)
       }
-      const url = `/api/practice?${params.toString()}`
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-      const data = await res.json()
+      const data = await api.get<{ questions: Question[] }>("/api/practice", { params: queryParams })
       const qs = data.questions || []
       setQuestions(qs)
       if (qs.length === 0) setFinished(true)
@@ -301,13 +294,9 @@ export default function PracticePage() {
     setExamTimeLeft(examTimeLimit * 60)
 
     try {
-      const token = localStorage.getItem("token")
-      const params = new URLSearchParams({ limit: String(examCount) })
-      if (selectedCategory) params.set("categoryId", selectedCategory.id)
-      const res = await fetch(`/api/practice?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      const data = await res.json()
+      const params: Record<string, string> = { limit: String(examCount) }
+      if (selectedCategory) params.categoryId = selectedCategory.id
+      const data = await api.get<{ questions: Question[] }>("/api/practice", { params })
       setExamQuestions(data.questions || [])
       if (!data.questions || data.questions.length === 0) {
         setPhase("select")
@@ -332,16 +321,7 @@ export default function PracticePage() {
     }))
 
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch("/api/practice/exam", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ answers, totalTime }),
-      })
-      const data = await res.json()
+      const data = await api.post("/api/practice/exam", { answers, totalTime })
       setExamResult(data)
       setPhase("examResult")
     } catch {
@@ -363,23 +343,17 @@ export default function PracticePage() {
 
     setSubmitting(true)
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch("/api/practice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ questionId: question.id, userAnswer: answer, timeSpent }),
+      const data = await api.post<SubmitResult>("/api/practice", {
+        questionId: question.id, userAnswer: answer, timeSpent,
       })
-      const data = await res.json()
       setResult(data)
       setSummary((prev) => ({
         total: prev.total + 1,
         correct: prev.correct + (data.correct ? 1 : 0),
       }))
       // Fire-and-forget 更新错题本
-      fetch("/api/wrong-questions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ questionId: question.id, correct: data.correct, userAnswer: answer }),
+      api.post("/api/wrong-questions", {
+        questionId: question.id, correct: data.correct, userAnswer: answer,
       }).catch(() => {})
       // 逐题闯关：答完即存档
       if (mode === "onebyone" && progressCatRef.current) {
