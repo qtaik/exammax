@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { requireAuth } from "@/lib/auth"
 import { getWrongQuestionsForPractice } from "@/lib/wrong-questions"
 
+export const dynamic = "force-dynamic"
+
 export async function GET(req: Request) {
   try {
     const authResult = await requireAuth(req)
