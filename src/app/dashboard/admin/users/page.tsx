@@ -19,7 +19,14 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { Search, ChevronLeft, ChevronRight, Users, X, Shield, Coins, Zap, Lock, Award, Crown } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Search, ChevronLeft, ChevronRight, Users, X, Shield, Coins, Zap, Lock, Award, Crown, Square, CheckSquare, Trash2 } from "lucide-react"
 import { api } from "@/lib/api"
 
 interface UserItem {
@@ -108,6 +115,15 @@ export default function AdminUsersPage() {
   const [selectedTitleId, setSelectedTitleId] = useState("")
   const [titleMsg, setTitleMsg] = useState("")
 
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set())
+  const [selectAll, setSelectAll] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{
+    type: "single" | "batch"
+    userIds: string[]
+    displayName: string
+  } | null>(null)
+
   const fetchUsers = useCallback(async () => {
     setLoading(true)
     try {
@@ -132,6 +148,65 @@ export default function AdminUsersPage() {
   useEffect(() => {
     fetchUsers()
   }, [fetchUsers])
+
+  useEffect(() => {
+    setSelectedUsers(new Set())
+    setSelectAll(false)
+  }, [page, search, roleFilter])
+
+  const toggleSelectUser = (id: string) => {
+    setSelectAll(false)
+    setSelectedUsers((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectAll) {
+      setSelectAll(false)
+      setSelectedUsers(new Set())
+      return
+    }
+    setSelectedUsers(new Set(users.map((u) => u.id)))
+    setSelectAll(true)
+  }
+
+  const handleDeleteSingle = (u: UserItem) => {
+    setDeleteTarget({
+      type: "single",
+      userIds: [u.id],
+      displayName: u.username,
+    })
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteBatch = () => {
+    if (selectedUsers.size === 0) return
+    setDeleteTarget({
+      type: "batch",
+      userIds: Array.from(selectedUsers),
+      displayName: String(selectedUsers.size),
+    })
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return
+    try {
+      const ids = deleteTarget.userIds.join(",")
+      await api.delete("/api/admin/users", { params: { ids } })
+      setDeleteDialogOpen(false)
+      setDeleteTarget(null)
+      setSelectedUsers(new Set())
+      setSelectAll(false)
+      fetchUsers()
+    } catch (e: any) {
+      alert(e.message || "删除失败")
+    }
+  }
 
   const handleSearch = () => {
     setPage(1)
@@ -394,6 +469,21 @@ export default function AdminUsersPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {selectedUsers.size > 0 && (
+            <div className="flex items-center justify-between pb-4">
+              <span className="text-sm text-muted-foreground">
+                已选择 {selectedUsers.size} 位用户
+              </span>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDeleteBatch}
+              >
+                <Trash2 className="h-4 w-4 mr-1" /> 删除 ({selectedUsers.size})
+              </Button>
+            </div>
+          )}
+
           {loading ? (
             <p className="text-center text-muted-foreground py-8">加载中...</p>
           ) : users.length === 0 ? (
@@ -403,29 +493,57 @@ export default function AdminUsersPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
+                    <th className="text-left py-3 px-2 w-8">
+                      <button onClick={toggleSelectAll} className="text-muted-foreground hover:text-foreground">
+                        {selectAll || (users.length > 0 && selectedUsers.size === users.length)
+                          ? <CheckSquare className="h-4 w-4" />
+                          : <Square className="h-4 w-4" />}
+                      </button>
+                    </th>
                     <th className="text-left py-3 px-2 font-medium">用户名</th>
                     <th className="text-left py-3 px-2 font-medium">角色</th>
                     <th className="text-left py-3 px-2 font-medium">积分</th>
                     <th className="text-left py-3 px-2 font-medium">等级</th>
                     <th className="text-left py-3 px-2 font-medium">注册时间</th>
+                    <th className="text-left py-3 px-2 font-medium">操作</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((u) => (
                     <tr
                       key={u.id}
-                      className="border-b hover:bg-muted/50 cursor-pointer"
-                      onClick={() => openDrawer(u)}
+                      className="border-b hover:bg-muted/50"
                     >
-                      <td className="py-3 px-2 font-medium">{u.username}</td>
-                      <td className="py-3 px-2">
+                      <td className="py-3 px-2" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => toggleSelectUser(u.id)}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          {selectedUsers.has(u.id)
+                            ? <CheckSquare className="h-4 w-4" />
+                            : <Square className="h-4 w-4" />}
+                        </button>
+                      </td>
+                      <td className="py-3 px-2 font-medium cursor-pointer" onClick={() => openDrawer(u)}>{u.username}</td>
+                      <td className="py-3 px-2 cursor-pointer" onClick={() => openDrawer(u)}>
                         <Badge variant={roleBadgeVariant[u.role] || "default"}>
                           {roleLabels[u.role] || u.role}
                         </Badge>
                       </td>
-                      <td className="py-3 px-2">{u.points}</td>
-                      <td className="py-3 px-2">Lv.{u.level}</td>
-                      <td className="py-3 px-2">{formatDate(u.createdAt)}</td>
+                      <td className="py-3 px-2 cursor-pointer" onClick={() => openDrawer(u)}>{u.points}</td>
+                      <td className="py-3 px-2 cursor-pointer" onClick={() => openDrawer(u)}>Lv.{u.level}</td>
+                      <td className="py-3 px-2 cursor-pointer" onClick={() => openDrawer(u)}>{formatDate(u.createdAt)}</td>
+                      <td className="py-3 px-2" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={u.role === "ADMIN"}
+                          onClick={() => handleDeleteSingle(u)}
+                          title={u.role === "ADMIN" ? "管理员不可删除" : "删除用户"}
+                        >
+                          <Trash2 className={`h-4 w-4 ${u.role === "ADMIN" ? "" : "text-destructive"}`} />
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -460,6 +578,29 @@ export default function AdminUsersPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {deleteTarget?.type === "single" ? "确认删除用户" : "确认批量删除"}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {deleteTarget?.type === "single"
+              ? `确定要删除用户「${deleteTarget?.displayName}」吗？该用户的所有数据（积分、答题记录、考试记录、错题本、徽章、道具、班级成员关系等）都将被永久清除。此操作不可撤销。`
+              : `确定要删除选中的 ${deleteTarget?.displayName} 位用户吗？这些用户的所有数据都将被永久清除。此操作不可撤销。`}
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeleteDialogOpen(false); setDeleteTarget(null) }}>
+              取消
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteConfirm}>
+              确认删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Sheet open={drawerOpen} onOpenChange={(open) => { setDrawerOpen(open); if (!open) resetDrawer() }}>
         <SheetContent className="overflow-y-auto">
