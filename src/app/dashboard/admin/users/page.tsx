@@ -170,7 +170,7 @@ export default function AdminUsersPage() {
       setSelectedUsers(new Set())
       return
     }
-    setSelectedUsers(new Set(users.map((u) => u.id)))
+    setSelectedUsers(new Set(users.filter((u) => u.role !== "ADMIN").map((u) => u.id)))
     setSelectAll(true)
   }
 
@@ -495,7 +495,7 @@ export default function AdminUsersPage() {
                   <tr className="border-b">
                     <th className="text-left py-3 px-2 w-8">
                       <button onClick={toggleSelectAll} className="text-muted-foreground hover:text-foreground">
-                        {selectAll || (users.length > 0 && selectedUsers.size === users.length)
+                        {selectAll || (selectedUsers.size > 0 && selectedUsers.size === users.filter((u) => u.role !== "ADMIN").length)
                           ? <CheckSquare className="h-4 w-4" />
                           : <Square className="h-4 w-4" />}
                       </button>
@@ -515,14 +515,16 @@ export default function AdminUsersPage() {
                       className="border-b hover:bg-muted/50"
                     >
                       <td className="py-3 px-2" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => toggleSelectUser(u.id)}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          {selectedUsers.has(u.id)
-                            ? <CheckSquare className="h-4 w-4" />
-                            : <Square className="h-4 w-4" />}
-                        </button>
+                        {u.role !== "ADMIN" ? (
+                          <button
+                            onClick={() => toggleSelectUser(u.id)}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            {selectedUsers.has(u.id)
+                              ? <CheckSquare className="h-4 w-4" />
+                              : <Square className="h-4 w-4" />}
+                          </button>
+                        ) : null}
                       </td>
                       <td className="py-3 px-2 font-medium cursor-pointer" onClick={() => openDrawer(u)}>{u.username}</td>
                       <td className="py-3 px-2 cursor-pointer" onClick={() => openDrawer(u)}>
