@@ -536,15 +536,16 @@ export default function AdminUsersPage() {
                       <td className="py-3 px-2 cursor-pointer" onClick={() => openDrawer(u)}>Lv.{u.level}</td>
                       <td className="py-3 px-2 cursor-pointer" onClick={() => openDrawer(u)}>{formatDate(u.createdAt)}</td>
                       <td className="py-3 px-2" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={u.role === "ADMIN"}
-                          onClick={() => handleDeleteSingle(u)}
-                          title={u.role === "ADMIN" ? "管理员不可删除" : "删除用户"}
-                        >
-                          <Trash2 className={`h-4 w-4 ${u.role === "ADMIN" ? "" : "text-destructive"}`} />
-                        </Button>
+                        {u.role !== "ADMIN" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteSingle(u)}
+                            title="删除用户"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
                       </td>
                     </tr>
                   ))}

@@ -60,6 +60,7 @@ export default function StudentExamPage() {
   const [leaveUrl, setLeaveUrl] = useState<string | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [fullscreenBlocked, setFullscreenBlocked] = useState(false)
+  const submittingRef = useRef(false)
   const [maxSwitches, setMaxSwitches] = useState(3)
 
   const qTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -218,6 +219,7 @@ export default function StudentExamPage() {
   useEffect(() => {
     if (!data || data.submission.status !== "PENDING") return
     const handler = (e: BeforeUnloadEvent) => {
+      if (submittingRef.current) return
       e.preventDefault()
       e.returnValue = ""
     }
@@ -290,6 +292,7 @@ export default function StudentExamPage() {
 
       if (result.success) {
         clearSession(examId)
+        submittingRef.current = true
         // Exit fullscreen
         try { if (document.fullscreenElement) await document.exitFullscreen() } catch (err) { console.error("exitFullscreen error:", err) }
         // Reload to show results
