@@ -17,21 +17,20 @@ const nextConfig = {
     instrumentationHook: true,
   },
   async headers() {
-    const baseHeaders = [
-      { key: "X-Content-Type-Options", value: "nosniff" },
-      { key: "X-Frame-Options", value: "DENY" },
-      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Content-Security-Policy", value: cspHeader },
+          ...(isProd
+            ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" }]
+            : []),
+        ],
+      },
     ]
-
-    // CSP 和 HSTS 仅在生产环境生效，避免开发时干扰浏览器扩展/DevTools
-    if (isProd) {
-      baseHeaders.push(
-        { key: "Content-Security-Policy", value: cspHeader },
-        { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
-      )
-    }
-
-    return [{ source: "/(.*)", headers: baseHeaders }]
   },
 }
 
