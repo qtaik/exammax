@@ -293,8 +293,19 @@ export default function TeacherClassesPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    navigator.clipboard.writeText(inviteCode)
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(inviteCode)
+                    } catch {
+                      const ta = document.createElement("textarea")
+                      ta.value = inviteCode
+                      ta.style.position = "fixed"
+                      ta.style.opacity = "0"
+                      document.body.appendChild(ta)
+                      ta.select()
+                      document.execCommand("copy")
+                      document.body.removeChild(ta)
+                    }
                     setCopied(true)
                     setTimeout(() => setCopied(false), 2000)
                   }}
