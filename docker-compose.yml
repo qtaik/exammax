@@ -7,11 +7,13 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=mysql://exammax:exammax123@db:3306/exammax
+      # ⚠️ 公网部署前必须覆盖: NEXTAUTH_URL / JWT_SECRET / REDIS_PASSWORD
+      - DATABASE_URL=${DATABASE_URL:-mysql://exammax:exammax123@db:3306/exammax}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-your-secret-key-change-in-production}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - JWT_SECRET=${JWT_SECRET:-exammax-jwt-secret-key-2026}
     depends_on:
       db:
@@ -30,7 +32,7 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
-      - "3306:3306"
+      - "3306:3306"  # 公网部署建议移除，仅通过 Docker 网络访问
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -40,8 +42,9 @@ services:
 
   redis:
     image: redis:7-alpine
+    command: ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
     ports:
-      - "6379:6379"
+      - "6379:6379"  # 公网部署建议移除，仅通过 Docker 网络访问
     volumes:
       - redis_data:/data
     healthcheck:
