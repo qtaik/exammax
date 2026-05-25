@@ -5,6 +5,9 @@ import { Prisma } from "@prisma/client"
 import { checkAndAwardBadges } from "@/lib/badge-checker"
 
 export async function GET(req: Request) {
+  const { error } = await requireAuth(req)
+  if (error) return error
+
   try {
     const { searchParams } = new URL(req.url)
     const categoryId = searchParams.get("categoryId")
