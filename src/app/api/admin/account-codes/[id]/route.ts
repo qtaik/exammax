@@ -80,6 +80,9 @@ export async function DELETE(
   if (roleErr) return roleErr
 
   try {
+    if (!params.id) {
+      return NextResponse.json({ error: "无效的账户码ID" }, { status: 400 })
+    }
     const code = await prisma.accountCode.findUnique({
       where: { id: params.id },
       include: { boundUser: { select: { username: true } } },
