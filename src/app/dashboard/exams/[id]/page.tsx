@@ -59,6 +59,7 @@ export default function StudentExamPage() {
   const [leaveDialog, setLeaveDialog] = useState(false)
   const [leaveUrl, setLeaveUrl] = useState<string | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [fullscreenBlocked, setFullscreenBlocked] = useState(false)
   const [maxSwitches, setMaxSwitches] = useState(3)
 
   const qTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -171,7 +172,10 @@ export default function StudentExamPage() {
       if (!document.fullscreenElement && !submitting) {
         document.documentElement.requestFullscreen().then(() => {
           setIsFullscreen(true)
-        }).catch((err) => { console.error("reenterFullscreen error:", err) })
+        }).catch((err) => {
+          console.error("reenterFullscreen error:", err)
+          setFullscreenBlocked(true)
+        })
       }
     }
 
@@ -226,7 +230,10 @@ export default function StudentExamPage() {
     try {
       await document.documentElement.requestFullscreen()
       setIsFullscreen(true)
-    } catch (err) { console.error("enterFullscreen error:", err) }
+    } catch (err) {
+      console.error("enterFullscreen error:", err)
+      setFullscreenBlocked(true)
+    }
   }
 
   // --- Navigation with time tracking ---
@@ -337,7 +344,7 @@ export default function StudentExamPage() {
               )}
               <div className="flex items-center justify-center gap-2 mt-4 text-sm text-muted-foreground">
                 <AlertTriangle className="h-4 w-4 text-orange-500" />
-                <span>考试将进入全屏模式，切屏将被记录</span>
+                <span>{fullscreenBlocked ? "全屏模式不可用（需要 HTTPS）— 浏览器已阻止" : "考试将进入全屏模式，切屏将被记录"}</span>
               </div>
             </div>
             <Button size="lg" onClick={enterFullscreen} className="gap-2">
@@ -349,6 +356,12 @@ export default function StudentExamPage() {
 
         {isFullscreen && (
           <div className="flex flex-col h-screen">
+            {fullscreenBlocked && (
+              <div className="bg-orange-100 dark:bg-orange-950 text-orange-800 dark:text-orange-200 text-xs text-center py-1.5 px-4">
+                <AlertTriangle className="h-3 w-3 inline mr-1" />
+                全屏模式被浏览器阻止（需 HTTPS），防作弊功能受限
+              </div>
+            )}
             {/* Top bar */}
             <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/30 shrink-0">
               <div className="flex items-center gap-3">
