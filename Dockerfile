@@ -47,12 +47,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copy prisma schema and seed for database operations
-COPY --from=builder /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
 # Install prisma CLI + tsx for db push/seed commands (pinned to match @prisma/client@5)
 RUN npm install --no-save prisma@5.14.0 tsx@4.22.3
-RUN chown -R nextjs:nodejs /app/node_modules /app/prisma
-
 USER nextjs
 
 EXPOSE 3000
