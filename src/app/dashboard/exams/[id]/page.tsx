@@ -672,7 +672,7 @@ interface ExamSession {
 function loadSession(examId: string): ExamSession | null {
   if (typeof window === "undefined") return null
   try {
-    const raw = localStorage.getItem(sessionKey(examId))
+    const raw = sessionStorage.getItem(sessionKey(examId))
     return raw ? JSON.parse(raw) : null
   } catch { return null }
 }
@@ -680,7 +680,7 @@ function loadSession(examId: string): ExamSession | null {
 function saveSession(examId: string, data: ExamSession) {
   if (typeof window === "undefined") return
   try {
-    localStorage.setItem(sessionKey(examId), JSON.stringify(data))
+    sessionStorage.setItem(sessionKey(examId), JSON.stringify(data))
   } catch (err) { console.error("saveSession error:", err) }
 }
 
