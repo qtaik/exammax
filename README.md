@@ -24,7 +24,7 @@ git clone <repo-url> && cd exammax
 docker compose up -d --build
 
 # 初始化表结构 + 种子数据
-docker compose exec app npx prisma db push
+docker compose exec app npx prisma db push --skip-generate
 docker compose exec app npx prisma db seed
 
 # 浏览器访问
@@ -115,7 +115,7 @@ JWT_SECRET="exammax-jwt-secret-key-2026"
 docker compose up -d --build
 
 # 2. 建表
-docker compose exec app npx prisma db push
+docker compose exec app npx prisma db push --skip-generate
 
 # 3. 灌种子数据（管理员、教师、徽章、称号）
 docker compose exec app npx prisma db seed
@@ -282,7 +282,7 @@ docker compose down -v          # 停止并删除数据卷（⚠️ 数据丢失
 ```bash
 git pull
 docker compose up -d --build    # 重建镜像
-docker compose exec app npx prisma db push  # 更新表结构（如有变更）
+docker compose exec app npx prisma db push --skip-generate  # 更新表结构（如有变更）
 ```
 
 ### 生产环境安全清单
