@@ -180,40 +180,34 @@ export default function AdminAccountCodesPage() {
   }
 
   const copyCode = async (code: string) => {
-    const ta = document.createElement("textarea")
-    ta.value = code
-    ta.style.position = "fixed"
-    ta.style.opacity = "0"
-    document.body.appendChild(ta)
-    ta.select()
-    const ok = document.execCommand("copy")
-    document.body.removeChild(ta)
-    if (!ok) {
-      try {
-        await navigator.clipboard.writeText(code)
-      } catch {
-        // both failed
-      }
+    try {
+      await navigator.clipboard.writeText(code)
+    } catch {
+      const ta = document.createElement("textarea")
+      ta.value = code
+      ta.style.position = "fixed"
+      ta.style.opacity = "0"
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand("copy")
+      document.body.removeChild(ta)
     }
     alert("已复制到剪贴板")
   }
 
   const copyAllCodes = async () => {
     const text = generatedCodes.join("\n")
-    const ta = document.createElement("textarea")
-    ta.value = text
-    ta.style.position = "fixed"
-    ta.style.opacity = "0"
-    document.body.appendChild(ta)
-    ta.select()
-    const ok = document.execCommand("copy")
-    document.body.removeChild(ta)
-    if (!ok) {
-      try {
-        await navigator.clipboard.writeText(text)
-      } catch {
-        // both failed
-      }
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch {
+      const ta = document.createElement("textarea")
+      ta.value = text
+      ta.style.position = "fixed"
+      ta.style.opacity = "0"
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand("copy")
+      document.body.removeChild(ta)
     }
     alert("已复制全部账户码到剪贴板")
   }
