@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Users, Plus, Trash2, Copy, Eye, Search, Check } from "lucide-react"
+import { Users, Plus, Trash2, Copy, Eye, Search } from "lucide-react"
 import { api } from "@/lib/api"
 
 interface ClassItem {
@@ -34,25 +34,6 @@ export default function TeacherClassesPage() {
   const [inviteDialog, setInviteDialog] = useState<ClassItem | null>(null)
   const [inviteCode, setInviteCode] = useState("")
   const [inviteError, setInviteError] = useState("")
-  const [copied, setCopied] = useState(false)
-
-  const copyCode = async (code: string) => {
-    const ta = document.createElement("textarea")
-    ta.value = code
-    ta.style.position = "fixed"
-    ta.style.opacity = "0"
-    document.body.appendChild(ta)
-    ta.select()
-    const ok = document.execCommand("copy")
-    document.body.removeChild(ta)
-    if (!ok) {
-      try {
-        await navigator.clipboard.writeText(code)
-      } catch {
-        // both failed
-      }
-    }
-  }
   const [formName, setFormName] = useState("")
   const [formDesc, setFormDesc] = useState("")
   const [members, setMembers] = useState<Member[]>([])
@@ -302,7 +283,7 @@ export default function TeacherClassesPage() {
       </Dialog>
 
       {/* Invite Code Dialog */}
-      <Dialog open={!!inviteDialog} onOpenChange={() => { setInviteDialog(null); setInviteCode(""); setInviteError(""); setCopied(false) }}>
+      <Dialog open={!!inviteDialog} onOpenChange={() => { setInviteDialog(null); setInviteCode(""); setInviteError("") }}>
         <DialogContent>
           <DialogHeader><DialogTitle>班级邀请码 - {inviteDialog?.name}</DialogTitle></DialogHeader>
           <div className="text-center py-4">
@@ -317,22 +298,10 @@ export default function TeacherClassesPage() {
               <div className="space-y-3">
                 <p
                   className="text-sm font-mono font-bold text-primary break-all cursor-pointer select-all bg-muted p-2 rounded"
-                  title="点击选中后 Ctrl+C 手动复制"
+                  title="点击全选后 Ctrl+C 复制"
                 >
                   {inviteCode}
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={async () => {
-                    await copyCode(inviteCode)
-                    setCopied(true)
-                    setTimeout(() => setCopied(false), 2000)
-                  }}
-                >
-                  {copied ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                  {copied ? "已复制" : "一键复制"}
-                </Button>
                 <p className="text-sm text-muted-foreground">学生输入此邀请码即可加入班级</p>
               </div>
             ) : <p className="text-sm text-muted-foreground">生成中...</p>}
