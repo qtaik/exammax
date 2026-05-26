@@ -33,7 +33,23 @@ export default function TeacherClassesPage() {
   const [memberDialog, setMemberDialog] = useState<ClassItem | null>(null)
   const [inviteDialog, setInviteDialog] = useState<ClassItem | null>(null)
   const [inviteCode, setInviteCode] = useState("")
+  const [inviteError, setInviteError] = useState("")
   const [copied, setCopied] = useState(false)
+
+  const copyCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code)
+    } catch {
+      const ta = document.createElement("textarea")
+      ta.value = code
+      ta.style.position = "fixed"
+      ta.style.opacity = "0"
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand("copy")
+      document.body.removeChild(ta)
+    }
+  }
   const [formName, setFormName] = useState("")
   const [formDesc, setFormDesc] = useState("")
   const [members, setMembers] = useState<Member[]>([])
@@ -129,10 +145,14 @@ export default function TeacherClassesPage() {
 
   const handleGenInvite = async (cls: ClassItem) => {
     setInviteDialog(cls)
+    setInviteCode("")
+    setInviteError("")
     try {
       const data = await api.get<{ classCode?: { code: string } }>(`/api/classes/${cls.id}/class-code`)
       setInviteCode(data.classCode?.code || "")
-    } catch (err) { console.error("handleGenInvite error:", err) }
+    } catch (err: any) {
+      setInviteError(err.message || "获取邀请码失败")
+    }
   }
 
   if (loading) return <div className="flex items-center justify-center h-64"><p className="text-muted-foreground">加载中...</p></div>
@@ -279,11 +299,18 @@ export default function TeacherClassesPage() {
       </Dialog>
 
       {/* Invite Code Dialog */}
-      <Dialog open={!!inviteDialog} onOpenChange={() => { setInviteDialog(null); setInviteCode(""); setCopied(false) }}>
+      <Dialog open={!!inviteDialog} onOpenChange={() => { setInviteDialog(null); setInviteCode(""); setInviteError(""); setCopied(false) }}>
         <DialogContent>
           <DialogHeader><DialogTitle>班级邀请码 - {inviteDialog?.name}</DialogTitle></DialogHeader>
           <div className="text-center py-4">
-            {inviteCode ? (
+            {inviteError ? (
+              <div className="space-y-3">
+                <p className="text-sm text-destructive">{inviteError}</p>
+                <Button variant="outline" size="sm" onClick={() => inviteDialog && handleGenInvite(inviteDialog)}>
+                  重试
+                </Button>
+              </div>
+            ) : inviteCode ? (
               <div className="space-y-3">
                 <p className="text-2xl font-mono font-bold text-primary tracking-widest">
                   {inviteCode.length > 16
@@ -294,18 +321,7 @@ export default function TeacherClassesPage() {
                   variant="outline"
                   size="sm"
                   onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(inviteCode)
-                    } catch {
-                      const ta = document.createElement("textarea")
-                      ta.value = inviteCode
-                      ta.style.position = "fixed"
-                      ta.style.opacity = "0"
-                      document.body.appendChild(ta)
-                      ta.select()
-                      document.execCommand("copy")
-                      document.body.removeChild(ta)
-                    }
+                    await copyCode(inviteCode)
                     setCopied(true)
                     setTimeout(() => setCopied(false), 2000)
                   }}
