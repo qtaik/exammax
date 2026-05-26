@@ -186,16 +186,15 @@ export default function AdminAccountCodesPage() {
     ta.style.opacity = "0"
     document.body.appendChild(ta)
     ta.select()
-    try {
-      document.execCommand("copy")
-    } catch {
+    const ok = document.execCommand("copy")
+    document.body.removeChild(ta)
+    if (!ok) {
       try {
         await navigator.clipboard.writeText(code)
       } catch {
         // both failed
       }
     }
-    document.body.removeChild(ta)
     alert("已复制到剪贴板")
   }
 
@@ -207,16 +206,15 @@ export default function AdminAccountCodesPage() {
     ta.style.opacity = "0"
     document.body.appendChild(ta)
     ta.select()
-    try {
-      document.execCommand("copy")
-    } catch {
+    const ok = document.execCommand("copy")
+    document.body.removeChild(ta)
+    if (!ok) {
       try {
         await navigator.clipboard.writeText(text)
       } catch {
         // both failed
       }
     }
-    document.body.removeChild(ta)
     alert("已复制全部账户码到剪贴板")
   }
 
@@ -302,7 +300,7 @@ export default function AdminAccountCodesPage() {
                       <td className="py-3 px-2">
                         <div className="flex items-center gap-2">
                           <code
-                            className="text-xs bg-muted px-1 py-0.5 rounded cursor-pointer select-all hover:bg-accent max-w-[200px] truncate"
+                            className="text-xs bg-muted px-1 py-0.5 rounded cursor-pointer hover:bg-accent"
                             title="点击展开完整码，再次点击收起"
                             onClick={() => {
                               setExpandedCodes((prev) => {

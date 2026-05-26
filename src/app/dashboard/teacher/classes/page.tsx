@@ -43,16 +43,15 @@ export default function TeacherClassesPage() {
     ta.style.opacity = "0"
     document.body.appendChild(ta)
     ta.select()
-    try {
-      document.execCommand("copy")
-    } catch {
+    const ok = document.execCommand("copy")
+    document.body.removeChild(ta)
+    if (!ok) {
       try {
         await navigator.clipboard.writeText(code)
       } catch {
         // both failed
       }
     }
-    document.body.removeChild(ta)
   }
   const [formName, setFormName] = useState("")
   const [formDesc, setFormDesc] = useState("")
