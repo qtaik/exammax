@@ -316,10 +316,11 @@ export default function TeacherClassesPage() {
               </div>
             ) : inviteCode ? (
               <div className="space-y-3">
-                <p className="text-2xl font-mono font-bold text-primary tracking-widest">
-                  {inviteCode.length > 16
-                    ? `${inviteCode.slice(0, 8)}...${inviteCode.slice(-4)}`
-                    : inviteCode}
+                <p
+                  className="text-sm font-mono font-bold text-primary break-all cursor-pointer select-all bg-muted p-2 rounded"
+                  title="点击选中后 Ctrl+C 手动复制"
+                >
+                  {inviteCode}
                 </p>
                 <Button
                   variant="outline"
@@ -331,7 +332,7 @@ export default function TeacherClassesPage() {
                   }}
                 >
                   {copied ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                  {copied ? "已复制" : "复制完整邀请码"}
+                  {copied ? "已复制" : "一键复制"}
                 </Button>
                 <p className="text-sm text-muted-foreground">学生输入此邀请码即可加入班级</p>
               </div>

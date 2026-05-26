@@ -69,6 +69,7 @@ export default function AdminAccountCodesPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [statusFilter, setStatusFilter] = useState("all")
   const [loading, setLoading] = useState(true)
+  const [expandedCodes, setExpandedCodes] = useState<Set<string>>(new Set())
 
   // Generate dialog
   const [generateOpen, setGenerateOpen] = useState(false)
@@ -300,8 +301,19 @@ export default function AdminAccountCodesPage() {
                     <tr key={code.id} className="border-b hover:bg-muted/50">
                       <td className="py-3 px-2">
                         <div className="flex items-center gap-2">
-                          <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                            {truncateCode(code.code)}
+                          <code
+                            className="text-xs bg-muted px-1 py-0.5 rounded cursor-pointer select-all hover:bg-accent max-w-[200px] truncate"
+                            title="点击展开完整码，再次点击收起"
+                            onClick={() => {
+                              setExpandedCodes((prev) => {
+                                const next = new Set(prev)
+                                if (next.has(code.id)) next.delete(code.id)
+                                else next.add(code.id)
+                                return next
+                              })
+                            }}
+                          >
+                            {expandedCodes.has(code.id) ? code.code : truncateCode(code.code)}
                           </code>
                           <Button
                             variant="ghost"
@@ -418,7 +430,7 @@ export default function AdminAccountCodesPage() {
               <div className="max-h-[300px] overflow-y-auto space-y-1 bg-muted p-3 rounded-md">
                 {generatedCodes.map((code, idx) => (
                   <div key={idx} className="flex items-center gap-2">
-                    <code className="text-xs flex-1 break-all">{code}</code>
+                    <code className="text-xs flex-1 break-all select-all cursor-pointer">{code}</code>
                     <Button
                       variant="ghost"
                       size="sm"
