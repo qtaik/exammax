@@ -28,7 +28,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ total })
     }
 
-    // 逐题闯关模式：返回分类全部题目
+    // 逐题闯关模式：返回分类全部题目，随机打乱顺序
     if (mode === "all") {
       const questions = await prisma.question.findMany({
         where,
@@ -43,11 +43,23 @@ export async function GET(req: Request) {
         },
         orderBy: { createdAt: "desc" },
       })
-      return NextResponse.json({ questions })
+      const shuffled = questions.sort(() => Math.random() - 0.5)
+      return NextResponse.json({ questions: shuffled })
     }
 
-    const questions = await prisma.question.findMany({
+    // 先获取所有匹配题目的 ID 和总数
+    const allIds = await prisma.question.findMany({
       where,
+      select: { id: true },
+    })
+
+    // 随机选取 limit 道题
+    const shuffledIds = allIds.sort(() => Math.random() - 0.5)
+    const selectedIds = shuffledIds.slice(0, limit).map((q) => q.id)
+
+    // 按随机选取的 ID 拉取完整题目
+    const questions = await prisma.question.findMany({
+      where: { id: { in: selectedIds } },
       select: {
         id: true,
         type: true,
@@ -59,11 +71,9 @@ export async function GET(req: Request) {
           select: { name: true },
         },
       },
-      take: limit,
-      orderBy: { createdAt: "desc" },
     })
 
-    // 随机打乱题目顺序
+    // 再次打乱（因为 findMany where in 不保证顺序）
     const shuffled = questions.sort(() => Math.random() - 0.5)
 
     return NextResponse.json({ questions: shuffled })
